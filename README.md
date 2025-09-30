@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 🎨 CraftHub - Artisan Marketplace Platform
 
 CraftHub is a comprehensive e-commerce platform designed specifically for artisans and craft enthusiasts. It provides a complete ecosystem for buying, selling, and discovering handmade products and workshops.
@@ -330,3 +331,6 @@ For support, email support@crafthub.com or create an issue in the repository.
 ---
 
 **CraftHub** - Where creativity meets commerce! 🎨✨
+=======
+# CraftHub
+>>>>>>> 529ebed35c4be0501b0a309e4517338fb0ddc201
