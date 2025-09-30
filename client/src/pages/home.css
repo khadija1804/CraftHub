@@ -1,0 +1,144 @@
+/* src/styles/home.css */
+body {
+    font-family: 'Arial', sans-serif;
+    color: #2d2d2d;
+    background-color: #f5f7fa;
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+}
+
+.hero {
+    background: linear-gradient(135deg, #6b48ff, #a950ff);
+    color: #fff;
+    text-align: center;
+    padding: 100px 20px 60px;
+    position: relative;
+    animation: fadeIn 1s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.hero h1 {
+    font-size: 3.5em;
+    font-weight: 700;
+    margin: 0 0 15px;
+}
+
+.hero p {
+    font-size: 1.3em;
+    margin: 0 0 30px;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.hero .cta-button {
+    padding: 12px 25px;
+    text-decoration: none;
+    font-weight: 600;
+    border-radius: 25px;
+    margin: 0 10px;
+    transition: transform 0.3s ease, background-color 0.3s ease;
+}
+
+.hero .cta-button:hover {
+    transform: scale(1.05);
+}
+
+.hero .join {
+    background-color: #fff;
+    color: #6b48ff;
+}
+
+.hero .login {
+    background-color: #a950ff;
+    color: #fff;
+}
+
+.section {
+    max-width: 1100px;
+    margin: 50px auto;
+    padding: 20px;
+    text-align: center;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    animation: slideUp 1s ease-out;
+}
+
+@keyframes slideUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.section h2 {
+    color: #6b48ff;
+    font-size: 2.2em;
+    font-weight: 700;
+    margin-bottom: 20px;
+}
+
+.mission-grid {
+    display: flex;
+    justify-content: space-around;
+    flex-wrap: wrap;
+    margin-top: 40px;
+}
+
+.mission-item {
+    width: 200px;
+    padding: 20px;
+    text-align: center;
+}
+
+.mission-item h3 {
+    font-size: 1.2em;
+    margin: 10px 0;
+}
+
+.card-grid {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.card {
+    width: 30%;
+    background: #fff;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    animation: fadeInCard 1s ease-out;
+}
+
+@keyframes fadeInCard {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.footer {
+    background-color: #2d2d2d;
+    color: #fff;
+    text-align: center;
+    padding: 40px 20px;
+    margin-top: 50px;
+}
+
+.footer h2 {
+    font-size: 1.8em;
+    margin: 0 0 15px;
+}
+
+@media (max-width: 768px) {
+    .hero h1 { font-size: 2.5em; }
+    .hero p { font-size: 1.1em; }
+    .card { width: 100%; }
+    .mission-grid { flex-direction: column; align-items: center; }
+    .mission-item { margin-bottom: 20px; }
+}
