@@ -200,8 +200,8 @@ function AdminStatistics() {
     labels: filteredStats?.paymentsByDay.map(item => item._id) || [],
     datasets: [
       {
-        label: 'Montant Total ($)',
-        data: filteredStats?.paymentsByDay.map(item => (item.totalAmount / 100).toFixed(2)) || [],
+        label: 'Montant Total (€)',
+        data: filteredStats?.paymentsByDay.map(item => item.totalAmount.toFixed(2)) || [],
         backgroundColor: 'rgba(138, 90, 68, 0.6)',
         borderColor: 'rgba(138, 90, 68, 1)',
         borderWidth: 1,
@@ -225,7 +225,7 @@ function AdminStatistics() {
     scales: {
       y: {
         beginAtZero: true,
-        title: { display: true, text: 'Valeur ($ / Nombre)' },
+        title: { display: true, text: 'Valeur (€ / Nombre)' },
       },
       x: { title: { display: true, text: 'Date' } },
     },
@@ -673,7 +673,7 @@ function AdminStatistics() {
                   marginBottom: '10px',
                   fontWeight: '700'
                 }}>
-                  ${filteredStats.totalRevenue.toFixed(2)}
+                  €{filteredStats.totalRevenue.toFixed(2)}
                 </h3>
                 <p style={{
                   fontSize: '1.1em',
@@ -700,7 +700,7 @@ function AdminStatistics() {
                   marginBottom: '10px',
                   fontWeight: '700'
                 }}>
-                  ${filteredStats.averagePayment.toFixed(2)}
+                  €{filteredStats.averagePayment.toFixed(2)}
                 </h3>
                 <p style={{
                   fontSize: '1.1em',
@@ -790,7 +790,7 @@ function AdminStatistics() {
                   marginBottom: '10px',
                   fontWeight: '700'
                 }}>
-                  {filteredStats.paymentStatus?.find(p => p._id === 'succeeded')?.count || 0}
+                  {filteredStats.paymentStatus?.find(p => p._id === 'paid')?.count || 0}
                 </h3>
                 <p style={{
                   fontSize: '1.1em',
@@ -804,7 +804,7 @@ function AdminStatistics() {
                   color: '#888',
                   margin: '0'
                 }}>
-                  {filteredStats.totalPayments > 0 ? Math.round(((filteredStats.paymentStatus?.find(p => p._id === 'succeeded')?.count || 0) / filteredStats.totalPayments) * 100) : 0}% du total
+                  {filteredStats.totalPayments > 0 ? Math.round(((filteredStats.paymentStatus?.find(p => p._id === 'paid')?.count || 0) / filteredStats.totalPayments) * 100) : 0}% du total
                 </p>
               </div>
 
@@ -825,7 +825,7 @@ function AdminStatistics() {
                   marginBottom: '10px',
                   fontWeight: '700'
                 }}>
-                  {filteredStats.paymentStatus?.find(p => p._id === 'failed')?.count || 0}
+                  {(filteredStats.paymentStatus?.find(p => p._id === 'pending')?.count || 0) + (filteredStats.paymentStatus?.find(p => p._id === 'expired')?.count || 0)}
                 </h3>
                 <p style={{
                   fontSize: '1.1em',
@@ -839,7 +839,7 @@ function AdminStatistics() {
                   color: '#888',
                   margin: '0'
                 }}>
-                  {filteredStats.totalPayments > 0 ? Math.round(((filteredStats.paymentStatus?.find(p => p._id === 'failed')?.count || 0) / filteredStats.totalPayments) * 100) : 0}% du total
+                  {filteredStats.totalPayments > 0 ? Math.round((((filteredStats.paymentStatus?.find(p => p._id === 'pending')?.count || 0) + (filteredStats.paymentStatus?.find(p => p._id === 'expired')?.count || 0)) / filteredStats.totalPayments) * 100) : 0}% du total
                 </p>
               </div>
 
@@ -954,7 +954,7 @@ function AdminStatistics() {
                           fontWeight: '700',
                           color: index < 3 ? '#fff' : '#2e7d32'
                         }}>
-                          ${(item.totalAmount / 100).toFixed(2)}
+                          €{item.totalAmount.toFixed(2)}
                         </div>
                       </div>
                     ))}
@@ -1074,8 +1074,8 @@ function AdminStatistics() {
                         fontWeight: '700',
                         margin: '0'
                       }}>
-                        ${filteredStats.paymentsByDay?.length > 0 ? 
-                          (filteredStats.paymentsByDay.reduce((sum, day) => sum + (day.totalAmount / 100), 0) / filteredStats.paymentsByDay.length).toFixed(2) : 
+                        €{filteredStats.paymentsByDay?.length > 0 ? 
+                          (filteredStats.paymentsByDay.reduce((sum, day) => sum + day.totalAmount, 0) / filteredStats.paymentsByDay.length).toFixed(2) : 
                           '0.00'}
                       </p>
                       <p style={{
@@ -1224,7 +1224,7 @@ function AdminStatistics() {
                           fontSize: '1.2em',
                           borderBottom: '1px solid #e9ecef'
                         }}>
-                          ${(item.totalAmount / 100).toFixed(2)}
+                          €{item.totalAmount.toFixed(2)}
                         </td>
                     </tr>
                   ))}

@@ -174,20 +174,25 @@ router.get('/artisans-statistics', auth, async (req, res) => {
     // 1. Nombre total d'artisans
     const totalArtisans = await User.countDocuments({ role: 'artisan' });
 
-    // 2. Nombre total de paiements et chiffre d'affaires
+    // 2. Nombre total d'abonnements et chiffre d'affaires des abonnements
+    const subscriptions = await Subscription.find({ status: 'paid' });
+    const totalSubscriptions = subscriptions.length;
+    const subscriptionRevenue = subscriptions.reduce((sum, sub) => sum + sub.amount, 0); // Les abonnements sont déjà en euros
+
+    // Garder aussi les paiements de produits pour d'autres stats
     const payments = await Payment.find();
-    const totalPayments = payments.length;
-    const totalRevenue = payments.reduce((sum, payment) => sum + payment.amount, 0) / 100; // Diviser par 100 si amount est en cents
+    const totalPayments = totalSubscriptions; // Afficher le nombre d'abonnements
+    const totalRevenue = subscriptionRevenue; // Afficher les revenus d'abonnements
 
-    // 3. Montant moyen par paiement
-    const averagePayment = totalPayments > 0 ? totalRevenue / totalPayments : 0;
+    // 3. Montant moyen par abonnement
+    const averagePayment = totalSubscriptions > 0 ? subscriptionRevenue / totalSubscriptions : 0;
 
-    // 4. Paiements par artisan
-    const paymentsByArtisan = await Payment.aggregate([
-      { $match: { 'items.artisanId': { $exists: true } } },
+    // 4. Abonnements par artisan (au lieu des paiements de produits)
+    const subscriptionsByArtisan = await Subscription.aggregate([
+      { $match: { status: 'paid' } },
       { $group: {
-        _id: '$items.artisanId',
-        paymentCount: { $sum: 1 },
+        _id: '$artisanId',
+        subscriptionCount: { $sum: 1 },
         totalAmount: { $sum: '$amount' }
       }},
       { $lookup: {
@@ -200,28 +205,36 @@ router.get('/artisans-statistics', auth, async (req, res) => {
       { $project: {
         artisanId: '$_id',
         artisanName: { $concat: ['$artisan.nom', ' ', '$artisan.prenom'] },
-        paymentCount: 1,
-        totalAmount: 1
+        paymentCount: '$subscriptionCount', // Garder le nom pour compatibilité frontend
+        totalAmount: '$totalAmount'
       }}
     ]);
 
-    // 5. Tendance temporelle (par jour)
-    const paymentsByDay = await Payment.aggregate([
+    // Aussi garder les paiements de produits pour d'autres statistiques
+    const paymentsByArtisan = subscriptionsByArtisan; // Utiliser les abonnements pour l'affichage principal
+
+    // 5. Tendance temporelle des abonnements (par jour)
+    const subscriptionsByDay = await Subscription.aggregate([
+      { $match: { status: 'paid' } },
       { $group: {
         _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
-        paymentCount: { $sum: 1 },
+        paymentCount: { $sum: 1 }, // Garder le nom pour compatibilité
         totalAmount: { $sum: '$amount' }
       }},
       { $sort: { _id: 1 } }
     ]);
 
-    // 6. Statut des paiements
-    const paymentStatus = await Payment.aggregate([
+    const paymentsByDay = subscriptionsByDay; // Utiliser les abonnements pour l'affichage
+
+    // 6. Statut des abonnements
+    const subscriptionStatus = await Subscription.aggregate([
       { $group: {
         _id: '$status',
         count: { $sum: 1 }
       }}
     ]);
+
+    const paymentStatus = subscriptionStatus; // Utiliser les abonnements pour l'affichage
 
     const statistics = {
       totalArtisans,

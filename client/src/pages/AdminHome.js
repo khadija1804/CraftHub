@@ -15,6 +15,10 @@ function AdminHome() {
   const [activeTab, setActiveTab] = useState('products');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  
+  // États pour la pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 12;
 
   useEffect(() => {
     const fetchData = async () => {
@@ -77,6 +81,27 @@ function AdminHome() {
      (filters.priceRange === '50-100' && w.price > 50 && w.price <= 100) ||
      (filters.priceRange === '100+' && w.price > 100))
   );
+
+  // Logique de pagination
+  const totalProducts = filteredProducts.length;
+  const totalWorkshops = filteredWorkshops.length;
+  const totalPages = Math.ceil((activeTab === 'products' ? totalProducts : totalWorkshops) / itemsPerPage);
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentProducts = filteredProducts.slice(indexOfFirstItem, indexOfLastItem);
+  const currentWorkshops = filteredWorkshops.slice(indexOfFirstItem, indexOfLastItem);
+
+  // Réinitialiser la page courante quand on change d'onglet ou de filtres
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, filters]);
+
+  // Réinitialiser la page courante si elle dépasse le nombre total de pages
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(1);
+    }
+  }, [currentPage, totalPages]);
 
   const isGoogleMapsLink = (text) => {
     return text && (text.startsWith('https://goo.gl') || text.startsWith('https://google.com/maps'));
@@ -641,7 +666,7 @@ function AdminHome() {
                 }
               }}
             >
-              🛍️ Produits ({filteredProducts.length})
+              🛍️ Produits ({totalProducts})
             </button>
 
             <button
@@ -673,7 +698,7 @@ function AdminHome() {
                 }
               }}
             >
-              🛠️ Ateliers ({filteredWorkshops.length})
+              🛠️ Ateliers ({totalWorkshops})
             </button>
           </div>
         </div>
@@ -695,16 +720,16 @@ function AdminHome() {
               fontWeight: 700,
               textShadow: '2px 2px 4px rgba(0,0,0,0.1)'
             }}>
-              🛍️ Produits ({filteredProducts.length})
+              🛍️ Produits ({totalProducts})
             </h3>
             
-          {filteredProducts.length > 0 ? (
+          {currentProducts.length > 0 ? (
               <div style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
                 gap: '35px'
               }}>
-                {filteredProducts.map((p) => (
+                {currentProducts.map((p) => (
                   <div key={p._id} className="card-hover" style={{
                     background: 'linear-gradient(135deg, #fff, #f8f9fa)',
                     borderRadius: '20px',
@@ -892,6 +917,112 @@ function AdminHome() {
                 </p>
               </div>
             )}
+            
+            {/* Contrôles de pagination pour les produits */}
+            {activeTab === 'products' && totalPages > 1 && (
+              <div style={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                gap: '10px',
+                marginTop: '40px',
+                marginBottom: '20px'
+              }}>
+                {/* Bouton Précédent */}
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  style={{
+                    padding: '12px 20px',
+                    borderRadius: '25px',
+                    border: 'none',
+                    background: currentPage === 1 ? '#e0e0e0' : 'linear-gradient(45deg, #8a5a44, #a67c5a)',
+                    color: currentPage === 1 ? '#999' : '#fff',
+                    cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                    fontSize: '1em',
+                    fontWeight: 600,
+                    boxShadow: currentPage === 1 ? 'none' : '0 4px 15px rgba(138, 90, 68, 0.3)',
+                    transition: 'all 0.3s ease'
+                  }}
+                >
+                  ← Précédent
+                </button>
+
+                {/* Numéros de pages */}
+                <div style={{ display: 'flex', gap: '5px' }}>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNumber => (
+                    <button
+                      key={pageNumber}
+                      onClick={() => setCurrentPage(pageNumber)}
+                      style={{
+                        width: '45px',
+                        height: '45px',
+                        borderRadius: '50%',
+                        border: 'none',
+                        background: currentPage === pageNumber 
+                          ? 'linear-gradient(45deg, #8a5a44, #a67c5a)' 
+                          : '#fff',
+                        color: currentPage === pageNumber ? '#fff' : '#8a5a44',
+                        cursor: 'pointer',
+                        fontSize: '1em',
+                        fontWeight: 600,
+                        boxShadow: currentPage === pageNumber 
+                          ? '0 4px 15px rgba(138, 90, 68, 0.3)' 
+                          : '0 2px 8px rgba(0,0,0,0.1)',
+                        transition: 'all 0.3s ease',
+                        border: currentPage === pageNumber ? 'none' : '2px solid #8a5a44'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (currentPage !== pageNumber) {
+                          e.target.style.background = 'linear-gradient(45deg, #8a5a44, #a67c5a)';
+                          e.target.style.color = '#fff';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (currentPage !== pageNumber) {
+                          e.target.style.background = '#fff';
+                          e.target.style.color = '#8a5a44';
+                        }
+                      }}
+                    >
+                      {pageNumber}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Bouton Suivant */}
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  style={{
+                    padding: '12px 20px',
+                    borderRadius: '25px',
+                    border: 'none',
+                    background: currentPage === totalPages ? '#e0e0e0' : 'linear-gradient(45deg, #8a5a44, #a67c5a)',
+                    color: currentPage === totalPages ? '#999' : '#fff',
+                    cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                    fontSize: '1em',
+                    fontWeight: 600,
+                    boxShadow: currentPage === totalPages ? 'none' : '0 4px 15px rgba(138, 90, 68, 0.3)',
+                    transition: 'all 0.3s ease'
+                  }}
+                >
+                  Suivant →
+                </button>
+              </div>
+            )}
+
+            {/* Informations de pagination pour les produits */}
+            {activeTab === 'products' && totalProducts > 0 && (
+              <div style={{
+                textAlign: 'center',
+                color: '#8a5a44',
+                fontSize: '0.9em',
+                marginBottom: '20px'
+              }}>
+                Affichage de {indexOfFirstItem + 1} à {Math.min(indexOfLastItem, totalProducts)} sur {totalProducts} produits
+              </div>
+            )}
           </div>
         )}
 
@@ -912,16 +1043,16 @@ function AdminHome() {
               fontWeight: 700,
               textShadow: '2px 2px 4px rgba(0,0,0,0.1)'
             }}>
-              🛠️ Ateliers ({filteredWorkshops.length})
+              🛠️ Ateliers ({totalWorkshops})
             </h3>
             
-          {filteredWorkshops.length > 0 ? (
+          {currentWorkshops.length > 0 ? (
               <div style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
                 gap: '35px'
               }}>
-                {filteredWorkshops.map((w) => (
+                {currentWorkshops.map((w) => (
                   <div key={w._id} className="card-hover" style={{
                     background: 'linear-gradient(135deg, #fff, #f8f9fa)',
                     borderRadius: '20px',
@@ -1147,6 +1278,112 @@ function AdminHome() {
                 }}>
                   Aucun atelier ne correspond aux filtres sélectionnés.
                 </p>
+              </div>
+            )}
+            
+            {/* Contrôles de pagination pour les ateliers */}
+            {activeTab === 'workshops' && totalPages > 1 && (
+              <div style={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                gap: '10px',
+                marginTop: '40px',
+                marginBottom: '20px'
+              }}>
+                {/* Bouton Précédent */}
+                <button
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  style={{
+                    padding: '12px 20px',
+                    borderRadius: '25px',
+                    border: 'none',
+                    background: currentPage === 1 ? '#e0e0e0' : 'linear-gradient(45deg, #8a5a44, #a67c5a)',
+                    color: currentPage === 1 ? '#999' : '#fff',
+                    cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                    fontSize: '1em',
+                    fontWeight: 600,
+                    boxShadow: currentPage === 1 ? 'none' : '0 4px 15px rgba(138, 90, 68, 0.3)',
+                    transition: 'all 0.3s ease'
+                  }}
+                >
+                  ← Précédent
+                </button>
+
+                {/* Numéros de pages */}
+                <div style={{ display: 'flex', gap: '5px' }}>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNumber => (
+                    <button
+                      key={pageNumber}
+                      onClick={() => setCurrentPage(pageNumber)}
+                      style={{
+                        width: '45px',
+                        height: '45px',
+                        borderRadius: '50%',
+                        border: 'none',
+                        background: currentPage === pageNumber 
+                          ? 'linear-gradient(45deg, #8a5a44, #a67c5a)' 
+                          : '#fff',
+                        color: currentPage === pageNumber ? '#fff' : '#8a5a44',
+                        cursor: 'pointer',
+                        fontSize: '1em',
+                        fontWeight: 600,
+                        boxShadow: currentPage === pageNumber 
+                          ? '0 4px 15px rgba(138, 90, 68, 0.3)' 
+                          : '0 2px 8px rgba(0,0,0,0.1)',
+                        transition: 'all 0.3s ease',
+                        border: currentPage === pageNumber ? 'none' : '2px solid #8a5a44'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (currentPage !== pageNumber) {
+                          e.target.style.background = 'linear-gradient(45deg, #8a5a44, #a67c5a)';
+                          e.target.style.color = '#fff';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (currentPage !== pageNumber) {
+                          e.target.style.background = '#fff';
+                          e.target.style.color = '#8a5a44';
+                        }
+                      }}
+                    >
+                      {pageNumber}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Bouton Suivant */}
+                <button
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  style={{
+                    padding: '12px 20px',
+                    borderRadius: '25px',
+                    border: 'none',
+                    background: currentPage === totalPages ? '#e0e0e0' : 'linear-gradient(45deg, #8a5a44, #a67c5a)',
+                    color: currentPage === totalPages ? '#999' : '#fff',
+                    cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                    fontSize: '1em',
+                    fontWeight: 600,
+                    boxShadow: currentPage === totalPages ? 'none' : '0 4px 15px rgba(138, 90, 68, 0.3)',
+                    transition: 'all 0.3s ease'
+                  }}
+                >
+                  Suivant →
+                </button>
+              </div>
+            )}
+
+            {/* Informations de pagination pour les ateliers */}
+            {activeTab === 'workshops' && totalWorkshops > 0 && (
+              <div style={{
+                textAlign: 'center',
+                color: '#8a5a44',
+                fontSize: '0.9em',
+                marginBottom: '20px'
+              }}>
+                Affichage de {indexOfFirstItem + 1} à {Math.min(indexOfLastItem, totalWorkshops)} sur {totalWorkshops} ateliers
               </div>
             )}
           </div>

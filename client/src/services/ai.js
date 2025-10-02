@@ -8,9 +8,8 @@ export async function translateText(text, target, source) {
   if (!res.ok) throw new Error("Échec de la traduction");
   return res.json(); // { translation, source, target }
 }
-
 export async function generateRAG({ keywords, contexteProduitMinimal }) {
-  const res = await fetch("http://localhost:5010/ai/generate-rag", {
+  const res = await fetch("http://localhost:5011/ai/generate-rag", {
     method: "POST",
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify({ keywords, contexteProduitMinimal })

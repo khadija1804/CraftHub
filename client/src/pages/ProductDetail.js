@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { getPublicProduct, getPublicProductImage, addComment, getComments, deleteComment, updateComment } from '../services/api';
+import { getPublicProduct, getPublicProductImage, addComment, getComments, deleteComment, updateComment, addToCart as addToCartAPI } from '../services/api';
 import { translateText } from "../services/ai"
 function ProductDetail() {
   const [product, setProduct] = useState(null);
@@ -57,31 +57,118 @@ const [notification, setNotification] = useState({ show: false, message: '', typ
     };
   }, [imageUrls]);
 
+  // Ajuster la quantité initiale en fonction du stock disponible
+  useEffect(() => {
+    if (product?.stock !== undefined) {
+      if (product.stock <= 0) {
+        setQuantity(0);
+      } else if (quantity > product.stock) {
+        setQuantity(Math.min(quantity, product.stock));
+      } else if (quantity === 0 && product.stock > 0) {
+        setQuantity(1);
+      }
+    }
+  }, [product?.stock, quantity]);
+
   const handleQuantityChange = (e) => {
-    setQuantity(Math.max(1, parseInt(e.target.value) || 1));
+    const value = parseInt(e.target.value) || 1;
+    const maxStock = product?.stock || 0;
+    
+    if (maxStock <= 0) {
+      setQuantity(0);
+      return;
+    }
+    
+    // Limiter la quantité au stock disponible
+    const validQuantity = Math.min(Math.max(1, value), maxStock);
+    setQuantity(validQuantity);
   };
 
-  const addToCart = () => {
-    if (quantity > 0) {
+  const addToCart = async () => {
+    const token = localStorage.getItem("token");
+    
+    // Vérifier si l'utilisateur est connecté
+    if (!token) {
       setNotification({
         show: true,
-        message: `${quantity} x ${product.name} ajouté au panier !`,
-        type: 'success'
+        message: 'Vous devez être connecté pour ajouter des produits au panier.',
+        type: 'error'
       });
-      // Auto-hide notification after 4 seconds
       setTimeout(() => {
-        setNotification({ show: false, message: '', type: 'success' });
+        setNotification({ show: false, message: '', type: 'error' });
       }, 4000);
-    } else {
+      return;
+    }
+
+    // Vérifier le stock disponible
+    const availableStock = product?.stock || 0;
+    
+    if (availableStock <= 0) {
+      setNotification({
+        show: true,
+        message: 'Ce produit n\'est plus en stock.',
+        type: 'error'
+      });
+      setTimeout(() => {
+        setNotification({ show: false, message: '', type: 'error' });
+      }, 4000);
+      return;
+    }
+
+    if (quantity > availableStock) {
+      setNotification({
+        show: true,
+        message: `Stock insuffisant. Seulement ${availableStock} article(s) disponible(s).`,
+        type: 'error'
+      });
+      setTimeout(() => {
+        setNotification({ show: false, message: '', type: 'error' });
+      }, 4000);
+      return;
+    }
+
+    if (quantity <= 0) {
       setNotification({
         show: true,
         message: 'Veuillez sélectionner une quantité valide.',
         type: 'error'
       });
-      // Auto-hide notification after 3 seconds
       setTimeout(() => {
         setNotification({ show: false, message: '', type: 'error' });
       }, 3000);
+      return;
+    }
+
+    try {
+      // Ajouter au panier via l'API
+      await addToCartAPI({
+        productId: product._id,
+        quantity,
+        artisanId: product.artisanId?._id || product.artisanId,
+        name: product.name || "Produit inconnu"
+      });
+
+      setNotification({
+        show: true,
+        message: `${quantity} x ${product.name} ajouté au panier !`,
+        type: 'success'
+      });
+      
+      // Auto-hide notification after 4 seconds
+      setTimeout(() => {
+        setNotification({ show: false, message: '', type: 'success' });
+      }, 4000);
+      
+    } catch (error) {
+      console.error('Erreur lors de l\'ajout au panier:', error);
+      setNotification({
+        show: true,
+        message: 'Erreur lors de l\'ajout au panier. Veuillez réessayer.',
+        type: 'error'
+      });
+      setTimeout(() => {
+        setNotification({ show: false, message: '', type: 'error' });
+      }, 4000);
     }
   };
 
@@ -599,7 +686,8 @@ const [notification, setNotification] = useState({ show: false, message: '', typ
       try {
         setIsTranslating(true);
         setTranslateError("");
-        const { translation } = await translateText(product.description, targetLang);
+        // Déterminer la langue source et cible correctement
+        const { translation } = await translateText(product.description, targetLang, undefined);
         setTranslatedDesc(translation);
       } catch (e) {
         setTranslateError(e.message || "Erreur inconnue");
@@ -839,7 +927,7 @@ const [notification, setNotification] = useState({ show: false, message: '', typ
             }}>
               <div style={{
                 display: 'flex',
-                alignItems: 'center',
+                flexDirection: 'column',
                 gap: '15px',
                 background: 'rgba(255,255,255,0.2)',
                 padding: '15px 25px',
@@ -847,29 +935,52 @@ const [notification, setNotification] = useState({ show: false, message: '', typ
                 backdropFilter: 'blur(10px)',
                 border: '1px solid rgba(255,255,255,0.3)'
               }}>
-                <label style={{
-                  fontSize: '1.2em',
-                  fontWeight: 600
+                {/* Affichage du stock disponible */}
+                <div style={{
+                  fontSize: '1.1em',
+                  fontWeight: 600,
+                  color: product?.stock > 0 ? '#4CAF50' : '#f44336',
+                  textAlign: 'center'
                 }}>
-                  Quantité :
-                </label>
-          <input
-            type="number"
-            min="1"
-            value={quantity}
-            onChange={handleQuantityChange}
-                  style={{
-                    width: '80px',
-                    padding: '12px',
-                    borderRadius: '10px',
-                    border: '2px solid rgba(255,255,255,0.3)',
-                    backgroundColor: 'rgba(255,255,255,0.9)',
-                    fontSize: '1.1em',
-                    fontWeight: 600,
-                    textAlign: 'center',
-                    color: '#8a5a44'
-                  }}
-                />
+                  {product?.stock > 0 
+                    ? `Stock disponible : ${product.stock} article(s)`
+                    : 'Rupture de stock'
+                  }
+                </div>
+                
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '15px',
+                  justifyContent: 'center'
+                }}>
+                  <label style={{
+                    fontSize: '1.2em',
+                    fontWeight: 600
+                  }}>
+                    Quantité :
+                  </label>
+                  <input
+                    type="number"
+                    min={product?.stock > 0 ? "1" : "0"}
+                    max={product?.stock || 0}
+                    value={quantity}
+                    onChange={handleQuantityChange}
+                    disabled={!product?.stock || product.stock <= 0}
+                    style={{
+                      width: '80px',
+                      padding: '12px',
+                      borderRadius: '10px',
+                      border: '2px solid rgba(255,255,255,0.3)',
+                      backgroundColor: product?.stock > 0 ? 'rgba(255,255,255,0.9)' : 'rgba(200,200,200,0.6)',
+                      fontSize: '1.1em',
+                      fontWeight: 600,
+                      textAlign: 'center',
+                      color: product?.stock > 0 ? '#8a5a44' : '#999',
+                      cursor: product?.stock > 0 ? 'text' : 'not-allowed'
+                    }}
+                  />
+                </div>
               </div>
             </div>
 
@@ -880,32 +991,38 @@ const [notification, setNotification] = useState({ show: false, message: '', typ
             }}>
               <button
                 onClick={addToCart}
+                disabled={!product?.stock || product.stock <= 0}
                 style={{
                   padding: '20px 40px',
-                  background: 'rgba(255,255,255,0.2)',
-                  color: '#fff',
-                  border: '2px solid rgba(255,255,255,0.3)',
+                  background: product?.stock > 0 ? 'rgba(255,255,255,0.2)' : 'rgba(100,100,100,0.3)',
+                  color: product?.stock > 0 ? '#fff' : '#ccc',
+                  border: `2px solid ${product?.stock > 0 ? 'rgba(255,255,255,0.3)' : 'rgba(150,150,150,0.3)'}`,
                   borderRadius: '25px',
                   fontSize: '1.3em',
                   fontWeight: 700,
-                  cursor: 'pointer',
+                  cursor: product?.stock > 0 ? 'pointer' : 'not-allowed',
                   transition: 'all 0.3s ease',
                   backdropFilter: 'blur(10px)',
                   textShadow: '1px 1px 2px rgba(0,0,0,0.2)',
-                  boxShadow: '0 8px 25px rgba(0,0,0,0.2)'
+                  boxShadow: '0 8px 25px rgba(0,0,0,0.2)',
+                  opacity: product?.stock > 0 ? 1 : 0.6
                 }}
                 onMouseOver={(e) => {
-                  e.target.style.background = 'rgba(255,255,255,0.3)';
-                  e.target.style.transform = 'translateY(-3px) scale(1.05)';
-                  e.target.style.boxShadow = '0 15px 35px rgba(0,0,0,0.3)';
+                  if (product?.stock > 0) {
+                    e.target.style.background = 'rgba(255,255,255,0.3)';
+                    e.target.style.transform = 'translateY(-3px) scale(1.05)';
+                    e.target.style.boxShadow = '0 15px 35px rgba(0,0,0,0.3)';
+                  }
                 }}
                 onMouseOut={(e) => {
-                  e.target.style.background = 'rgba(255,255,255,0.2)';
-                  e.target.style.transform = 'translateY(0) scale(1)';
-                  e.target.style.boxShadow = '0 8px 25px rgba(0,0,0,0.2)';
+                  if (product?.stock > 0) {
+                    e.target.style.background = 'rgba(255,255,255,0.2)';
+                    e.target.style.transform = 'translateY(0) scale(1)';
+                    e.target.style.boxShadow = '0 8px 25px rgba(0,0,0,0.2)';
+                  }
                 }}
               >
-                🛒 Ajouter au panier
+                {product?.stock > 0 ? '🛒 Ajouter au panier' : '❌ Rupture de stock'}
               </button>
             </div>
           </div>

@@ -1185,7 +1185,29 @@ function AccordionItem({ title, open = false, children }) {
                   boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
                 }}>
                   <div style={{ fontWeight: '600', marginBottom: '4px' }}>{p.name}</div>
-                  <div style={{ fontSize: '16px', fontWeight: '700' }}>{p.price} €</div>
+                  <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: '8px'
+                  }}>
+                    <div style={{ fontSize: '16px', fontWeight: '700' }}>{p.price} €</div>
+                    {(p.stock === 0 || p.stock === "0") && (
+                      <div style={{
+                        backgroundColor: 'rgba(220, 53, 69, 0.9)',
+                        color: '#fff',
+                        padding: '4px 8px',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        boxShadow: '0 2px 8px rgba(220, 53, 69, 0.3)',
+                        animation: 'pulse 2s infinite'
+                      }}>
+                        ⚠️ RUPTURE
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             ))
@@ -1532,6 +1554,20 @@ function AccordionItem({ title, open = false, children }) {
           fontSize: '14px'
         }}
       />
+
+      {/* CSS Animation for stock alert */}
+      <style>{`
+        @keyframes pulse {
+          0%, 100% {
+            opacity: 1;
+            transform: scale(1);
+          }
+          50% {
+            opacity: 0.7;
+            transform: scale(1.05);
+          }
+        }
+      `}</style>
     </div>
   );
 }

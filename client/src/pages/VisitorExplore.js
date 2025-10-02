@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { getProducts, getWorkshops, getPublicProductImage, getPublicWorkshopImage } from '../services/api';
+import { getPublicProducts, getPublicWorkshops, getPublicProductImage, getPublicWorkshopImage } from '../services/api';
 
 function VisitorExplore() {
   const [products, setProducts] = useState([]);
@@ -32,8 +32,8 @@ function VisitorExplore() {
     try {
       setLoading(true);
       const [productsResponse, workshopsResponse] = await Promise.all([
-        getProducts(),
-        getWorkshops()
+        getPublicProducts(),
+        getPublicWorkshops()
       ]);
       
       setProducts(productsResponse.data || []);

@@ -3,9 +3,26 @@ from flask_cors import CORS
 import json
 
 app = Flask(__name__)
-CORS(app)
+# Configuration CORS pour permettre les requêtes depuis le frontend React
+CORS(app, resources={
+    r"/*": {
+        "origins": ["http://localhost:3000"],
+        "methods": ["GET", "POST", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"]
+    }
+})
 
-@app.route('/ai/generate-rag', methods=['POST'])
+# Gérer les requêtes OPTIONS (preflight)
+@app.before_request
+def handle_preflight():
+    if request.method == "OPTIONS":
+        response = jsonify({"message": "Preflight OK"})
+        response.headers.add("Access-Control-Allow-Origin", "http://localhost:3000")
+        response.headers.add("Access-Control-Allow-Headers", "Content-Type, Authorization")
+        response.headers.add("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        return response
+
+@app.route('/ai/generate-rag', methods=['POST', 'OPTIONS'])
 def generate_rag():
     try:
         data = request.get_json()
@@ -54,6 +71,10 @@ def generate_rag():
             'success': False
         }), 500
 
+@app.route('/health', methods=['GET'])
+def health():
+    return jsonify({'status': 'OK', 'message': 'Service AI actif'})
+
 @app.route('/ai/translate', methods=['POST'])
 def translate():
     try:
@@ -74,10 +95,6 @@ def translate():
             'error': f'Erreur lors de la traduction: {str(e)}'
         }), 500
 
-@app.route('/health', methods=['GET'])
-def health():
-    return jsonify({'status': 'OK', 'message': 'Service AI actif'})
-
 if __name__ == '__main__':
-    print("🚀 Démarrage du serveur AI sur le port 5010...")
-    app.run(host='0.0.0.0', port=5010, debug=True)
+    print("🚀 Démarrage du serveur RAG sur le port 5011...")
+    app.run(host='0.0.0.0', port=5011, debug=True)

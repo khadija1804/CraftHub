@@ -15,6 +15,10 @@ function Home() {
   const [regions, setRegions] = useState([]);
   const [activeTab, setActiveTab] = useState('products');
   const navigate = useNavigate();
+  
+  // États pour la pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 12;
 
   // Fonction pour vérifier si un atelier est expiré
   const isWorkshopExpired = (workshopDate) => {
@@ -110,6 +114,27 @@ function Home() {
     const matchesRegion = !filters.region || filters.region === '' || w.location.toLowerCase().includes(filters.region.toLowerCase());
     return matchesCategory && matchesMinPrice && matchesMaxPrice && matchesRegion && matchesSearch;
   });
+
+  // Logique de pagination
+  const totalProducts = filteredProducts.length;
+  const totalWorkshops = filteredWorkshops.length;
+  const totalPages = Math.ceil((activeTab === 'products' ? totalProducts : totalWorkshops) / itemsPerPage);
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentProducts = filteredProducts.slice(indexOfFirstItem, indexOfLastItem);
+  const currentWorkshops = filteredWorkshops.slice(indexOfFirstItem, indexOfLastItem);
+
+  // Réinitialiser la page courante quand on change d'onglet ou de filtres
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, filters, searchTerm]);
+
+  // Réinitialiser la page courante si elle dépasse le nombre total de pages
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(1);
+    }
+  }, [currentPage, totalPages]);
 
   return (
     <div style={{ fontFamily: '"Georgia", serif', color: '#3a2f1a', minHeight: '100vh', backgroundColor: '#f8f1e9', margin: 0, padding: 0 }}>
@@ -496,7 +521,7 @@ function Home() {
             border: '1px solid rgba(212, 163, 115, 0.2)'
           }}>
             <span style={{ fontSize: '1.2em' }}>📦</span>
-            <span><strong>{filteredProducts.length}</strong> produits</span>
+            <span><strong>{totalProducts}</strong> produits</span>
           </div>
           <div style={{
             display: 'flex',
@@ -508,7 +533,7 @@ function Home() {
             border: '1px solid rgba(212, 163, 115, 0.2)'
           }}>
             <span style={{ fontSize: '1.2em' }}>🎨</span>
-            <span><strong>{filteredWorkshops.length}</strong> ateliers</span>
+            <span><strong>{totalWorkshops}</strong> ateliers</span>
           </div>
         </div>
 
@@ -598,8 +623,8 @@ function Home() {
             gap: '24px',
             marginBottom: '40px'
           }}>
-            {activeTab === 'products' && filteredProducts.length > 0 ? (
-              filteredProducts.map((p) => {
+            {activeTab === 'products' && currentProducts.length > 0 ? (
+              currentProducts.map((p) => {
                 const outOfStock = Number(p.stock) <= 0;
                 
                 return (
@@ -817,8 +842,8 @@ function Home() {
               </div>
             ) : null}
 
-            {activeTab === 'workshops' && filteredWorkshops.length > 0 ? (
-            filteredWorkshops.map((w) => {
+            {activeTab === 'workshops' && currentWorkshops.length > 0 ? (
+            currentWorkshops.map((w) => {
               const isExpired = isWorkshopExpired(w.date);
               
               return (
@@ -1104,6 +1129,112 @@ function Home() {
               </div>
             ) : null}
           </div>
+          
+          {/* Contrôles de pagination */}
+          {totalPages > 1 && (
+            <div style={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              gap: '10px',
+              marginTop: '40px',
+              marginBottom: '40px'
+            }}>
+              {/* Bouton Précédent */}
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                style={{
+                  padding: '12px 20px',
+                  borderRadius: '25px',
+                  border: 'none',
+                  background: currentPage === 1 ? '#e0e0e0' : 'linear-gradient(45deg, #8a5a44, #a67c5a)',
+                  color: currentPage === 1 ? '#999' : '#fff',
+                  cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                  fontSize: '1em',
+                  fontWeight: 600,
+                  boxShadow: currentPage === 1 ? 'none' : '0 4px 15px rgba(138, 90, 68, 0.3)',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                ← Précédent
+              </button>
+
+              {/* Numéros de pages */}
+              <div style={{ display: 'flex', gap: '5px' }}>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNumber => (
+                  <button
+                    key={pageNumber}
+                    onClick={() => setCurrentPage(pageNumber)}
+                    style={{
+                      width: '45px',
+                      height: '45px',
+                      borderRadius: '50%',
+                      border: 'none',
+                      background: currentPage === pageNumber 
+                        ? 'linear-gradient(45deg, #8a5a44, #a67c5a)' 
+                        : '#fff',
+                      color: currentPage === pageNumber ? '#fff' : '#8a5a44',
+                      cursor: 'pointer',
+                      fontSize: '1em',
+                      fontWeight: 600,
+                      boxShadow: currentPage === pageNumber 
+                        ? '0 4px 15px rgba(138, 90, 68, 0.3)' 
+                        : '0 2px 8px rgba(0,0,0,0.1)',
+                      transition: 'all 0.3s ease',
+                      border: currentPage === pageNumber ? 'none' : '2px solid #8a5a44'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (currentPage !== pageNumber) {
+                        e.target.style.background = 'linear-gradient(45deg, #8a5a44, #a67c5a)';
+                        e.target.style.color = '#fff';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (currentPage !== pageNumber) {
+                        e.target.style.background = '#fff';
+                        e.target.style.color = '#8a5a44';
+                      }
+                    }}
+                  >
+                    {pageNumber}
+                  </button>
+                ))}
+              </div>
+
+              {/* Bouton Suivant */}
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                style={{
+                  padding: '12px 20px',
+                  borderRadius: '25px',
+                  border: 'none',
+                  background: currentPage === totalPages ? '#e0e0e0' : 'linear-gradient(45deg, #8a5a44, #a67c5a)',
+                  color: currentPage === totalPages ? '#999' : '#fff',
+                  cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                  fontSize: '1em',
+                  fontWeight: 600,
+                  boxShadow: currentPage === totalPages ? 'none' : '0 4px 15px rgba(138, 90, 68, 0.3)',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                Suivant →
+              </button>
+            </div>
+          )}
+
+          {/* Informations de pagination */}
+          {(activeTab === 'products' ? totalProducts : totalWorkshops) > 0 && (
+            <div style={{
+              textAlign: 'center',
+              color: '#8a5a44',
+              fontSize: '0.9em',
+              marginBottom: '20px'
+            }}>
+              Affichage de {indexOfFirstItem + 1} à {Math.min(indexOfLastItem, activeTab === 'products' ? totalProducts : totalWorkshops)} sur {activeTab === 'products' ? totalProducts : totalWorkshops} {activeTab === 'products' ? 'produits' : 'ateliers'}
+            </div>
+          )}
         </section>
       </div>
 

@@ -45,6 +45,10 @@ function PublicBrowse() {
   const [bookingTimeouts, setBookingTimeouts] = useState({});
   const [timeRemaining, setTimeRemaining] = useState({});
   const isMounted = useRef(true);
+  
+  // États pour la pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const productsPerPage = 12;
 
   const blobToUrl = useCallback((blob) => {
     return blob ? URL.createObjectURL(blob) : "/placeholder-image.jpg";
@@ -227,6 +231,25 @@ function PublicBrowse() {
         (filters.priceRange === "50-100" && p.price > 50 && p.price <= 100) ||
         (filters.priceRange === "100+" && p.price > 100))
   );
+
+  // Logique de pagination
+  const totalProducts = finalFilteredProducts.length;
+  const totalPages = Math.ceil(totalProducts / productsPerPage);
+  const indexOfLastProduct = currentPage * productsPerPage;
+  const indexOfFirstProduct = indexOfLastProduct - productsPerPage;
+  const currentProducts = finalFilteredProducts.slice(indexOfFirstProduct, indexOfLastProduct);
+
+  // Réinitialiser la page courante si elle dépasse le nombre total de pages
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(1);
+    }
+  }, [currentPage, totalPages]);
+
+  // Réinitialiser la page courante quand les filtres ou la recherche changent
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters, searchTerm]);
 
   const finalFilteredWorkshops = filteredWorkshops.filter(
     (w) =>
@@ -1573,7 +1596,7 @@ const addToFavorites = async (item) => {
                   fontWeight: 600,
                   boxShadow: '0 4px 15px rgba(138, 90, 68, 0.3)'
                 }}>
-                  {finalFilteredProducts.length} produit{finalFilteredProducts.length > 1 ? 's' : ''} trouvé{finalFilteredProducts.length > 1 ? 's' : ''}
+                  {totalProducts} produit{totalProducts > 1 ? 's' : ''} trouvé{totalProducts > 1 ? 's' : ''}
                 </div>
               </div>
         <ul
@@ -1586,8 +1609,8 @@ const addToFavorites = async (item) => {
             marginBottom: "60px"
           }}
         >
-         {finalFilteredProducts.length > 0 ? (
-  finalFilteredProducts.map((p, index) => {
+         {currentProducts.length > 0 ? (
+  currentProducts.map((p, index) => {
     const available = Number(p.stock) || 0;
     const currentQty = quantities[p._id] ?? 1;
 
@@ -1873,6 +1896,112 @@ const addToFavorites = async (item) => {
   </p>
 )}
               </ul>
+              
+              {/* Contrôles de pagination */}
+              {totalPages > 1 && (
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  gap: '10px',
+                  marginTop: '40px',
+                  marginBottom: '40px'
+                }}>
+                  {/* Bouton Précédent */}
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    style={{
+                      padding: '12px 20px',
+                      borderRadius: '25px',
+                      border: 'none',
+                      background: currentPage === 1 ? '#e0e0e0' : 'linear-gradient(45deg, #8a5a44, #a67c5a)',
+                      color: currentPage === 1 ? '#999' : '#fff',
+                      cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                      fontSize: '1em',
+                      fontWeight: 600,
+                      boxShadow: currentPage === 1 ? 'none' : '0 4px 15px rgba(138, 90, 68, 0.3)',
+                      transition: 'all 0.3s ease'
+                    }}
+                  >
+                    ← Précédent
+                  </button>
+
+                  {/* Numéros de pages */}
+                  <div style={{ display: 'flex', gap: '5px' }}>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNumber => (
+                      <button
+                        key={pageNumber}
+                        onClick={() => setCurrentPage(pageNumber)}
+                        style={{
+                          width: '45px',
+                          height: '45px',
+                          borderRadius: '50%',
+                          border: 'none',
+                          background: currentPage === pageNumber 
+                            ? 'linear-gradient(45deg, #8a5a44, #a67c5a)' 
+                            : '#fff',
+                          color: currentPage === pageNumber ? '#fff' : '#8a5a44',
+                          cursor: 'pointer',
+                          fontSize: '1em',
+                          fontWeight: 600,
+                          boxShadow: currentPage === pageNumber 
+                            ? '0 4px 15px rgba(138, 90, 68, 0.3)' 
+                            : '0 2px 8px rgba(0,0,0,0.1)',
+                          transition: 'all 0.3s ease',
+                          border: currentPage === pageNumber ? 'none' : '2px solid #8a5a44'
+                        }}
+                        onMouseEnter={(e) => {
+                          if (currentPage !== pageNumber) {
+                            e.target.style.background = 'linear-gradient(45deg, #8a5a44, #a67c5a)';
+                            e.target.style.color = '#fff';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (currentPage !== pageNumber) {
+                            e.target.style.background = '#fff';
+                            e.target.style.color = '#8a5a44';
+                          }
+                        }}
+                      >
+                        {pageNumber}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Bouton Suivant */}
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    style={{
+                      padding: '12px 20px',
+                      borderRadius: '25px',
+                      border: 'none',
+                      background: currentPage === totalPages ? '#e0e0e0' : 'linear-gradient(45deg, #8a5a44, #a67c5a)',
+                      color: currentPage === totalPages ? '#999' : '#fff',
+                      cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                      fontSize: '1em',
+                      fontWeight: 600,
+                      boxShadow: currentPage === totalPages ? 'none' : '0 4px 15px rgba(138, 90, 68, 0.3)',
+                      transition: 'all 0.3s ease'
+                    }}
+                  >
+                    Suivant →
+                  </button>
+                </div>
+              )}
+
+              {/* Informations de pagination */}
+              {totalProducts > 0 && (
+                <div style={{
+                  textAlign: 'center',
+                  color: '#8a5a44',
+                  fontSize: '0.9em',
+                  marginBottom: '20px'
+                }}>
+                  Affichage de {indexOfFirstProduct + 1} à {Math.min(indexOfLastProduct, totalProducts)} sur {totalProducts} produits
+                </div>
+              )}
             </div>
           )}
 

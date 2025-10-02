@@ -406,8 +406,8 @@ function ArtisanStatistics() {
                   e.currentTarget.style.transform = 'translateY(0)';
                   e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,0.08)';
                 }}>
-                  <div style={{ fontSize: '3em', marginBottom: '15px' }}>💳</div>
-                  <h4 style={{ color: '#8a5a44', margin: '0 0 10px 0', fontSize: '1.2em' }}>Paiements</h4>
+                  <div style={{ fontSize: '3em', marginBottom: '15px' }}>✅</div>
+                  <h4 style={{ color: '#8a5a44', margin: '0 0 10px 0', fontSize: '1.2em' }}>Commandes Traitées</h4>
                   <p style={{ fontSize: '2.5em', color: '#8a5a44', margin: '0', fontWeight: 700 }}>{stats.paymentCount}</p>
                 </div>
 
@@ -434,51 +434,7 @@ function ArtisanStatistics() {
                   <p style={{ fontSize: '2.5em', color: '#8a5a44', margin: '0', fontWeight: 700 }}>{workshopStats.totalWorkshops}</p>
             </div>
 
-                {/* Comments Card */}
-                <div style={{
-                  backgroundColor: '#fff',
-                  borderRadius: '20px',
-                  padding: '30px',
-                  boxShadow: '0 8px 32px rgba(0,0,0,0.08)',
-                  border: '1px solid rgba(212, 163, 115, 0.2)',
-                  textAlign: 'center',
-                  transition: 'all 0.3s ease'
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-5px)';
-                  e.currentTarget.style.boxShadow = '0 12px 40px rgba(0,0,0,0.12)';
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,0.08)';
-                }}>
-                  <div style={{ fontSize: '3em', marginBottom: '15px' }}>💬</div>
-                  <h4 style={{ color: '#8a5a44', margin: '0 0 10px 0', fontSize: '1.2em' }}>Commentaires</h4>
-                  <p style={{ fontSize: '2.5em', color: '#8a5a44', margin: '0', fontWeight: 700 }}>{workshopStats.totalComments}</p>
-                </div>
 
-                {/* Products Card */}
-                <div style={{
-                  backgroundColor: '#fff',
-                  borderRadius: '20px',
-                  padding: '30px',
-                  boxShadow: '0 8px 32px rgba(0,0,0,0.08)',
-                  border: '1px solid rgba(212, 163, 115, 0.2)',
-                  textAlign: 'center',
-                  transition: 'all 0.3s ease'
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-5px)';
-                  e.currentTarget.style.boxShadow = '0 12px 40px rgba(0,0,0,0.12)';
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,0.08)';
-                }}>
-                  <div style={{ fontSize: '3em', marginBottom: '15px' }}>📦</div>
-                  <h4 style={{ color: '#8a5a44', margin: '0 0 10px 0', fontSize: '1.2em' }}>Produits</h4>
-                  <p style={{ fontSize: '2.5em', color: '#8a5a44', margin: '0', fontWeight: 700 }}>{stats?.topProducts?.length || 0}</p>
-                </div>
               </div>
             </div>
 
