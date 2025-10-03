@@ -261,4 +261,45 @@ router.delete('/cart/remove/:productId', auth, async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+// Route pour récupérer les réservations confirmées récentes
+// Route pour récupérer les réservations confirmées récentes
+router.get('/recent-confirmed', async (req, res) => {
+  try {
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+    
+    // Pour le test, récupérons toutes les réservations confirmées
+    console.log('🔍 Recherche des réservations confirmées...');
+    const bookings = await Booking.find({
+      status: 'confirmed'
+    })
+    .populate('userId', 'email prenom nom')
+    .populate('workshopId', 'title location instructor workshop_date booking_time')
+    .lean();
+    
+    console.log(`📊 Trouvé ${bookings.length} réservations confirmées`);
+    console.log('📋 Détails des réservations:', JSON.stringify(bookings, null, 2));
+
+    // Transformer les données pour correspondre au format attendu par n8n
+    const formattedBookings = bookings.map(booking => ({
+      id: booking._id,
+      workshop_date: booking.workshopId.date,
+      booking_time: booking.workshopId.booking_time,
+      status: booking.status,
+      created_at: booking.createdAt,
+      email: booking.userId.email,
+      first_name: booking.userId.prenom,
+      last_name: booking.userId.nom,
+      title: booking.workshopId.title,
+      location: booking.workshopId.location,
+      instructor: booking.workshopId.instructor
+    }));
+    
+    res.json(formattedBookings);
+  } catch (error) {
+    console.error('Error fetching recent confirmed bookings:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 module.exports = router;

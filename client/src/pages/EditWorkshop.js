@@ -6,7 +6,7 @@ import ArtisanFooter from '../components/ArtisanFooter';
 
 function EditWorkshop() {
   const { id } = useParams();
-  const [workshop, setWorkshop] = useState({ title: '', price: 0, category: '', images: [null, null, null], date: '', duration: 0, location: '', description: '' });
+  const [workshop, setWorkshop] = useState({ title: '', price: 0, category: '', images: [null, null, null], date: '', booking_time: '', duration: 0, location: '', description: '' });
   const [error, setError] = useState('');
   const [imageUrls, setImageUrls] = useState([null, null, null]);
   const [loading, setLoading] = useState(true);
@@ -109,6 +109,7 @@ function EditWorkshop() {
     formData.append('price', workshop.price);
     formData.append('category', workshop.category);
     formData.append('date', workshop.date);
+    formData.append('booking_time', workshop.booking_time);
     formData.append('duration', workshop.duration);
     formData.append('location', workshop.location);
     formData.append('description', workshop.description.trim());
@@ -441,9 +442,9 @@ function EditWorkshop() {
                 📅 Détails de l'Atelier
               </h3>
               
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '25px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '25px' }}>
                 {/* Date */}
-          <div>
+                <div>
                   <label style={{ 
                     display: 'block', 
                     marginBottom: '8px', 
@@ -451,12 +452,12 @@ function EditWorkshop() {
                     color: '#3a2f1a',
                     fontSize: '1.1em'
                   }}>
-                    Date et Heure *
+                    Date *
                   </label>
-            <input
-              type="datetime-local"
-              value={workshop.date}
-              onChange={(e) => setWorkshop({ ...workshop, date: e.target.value })}
+                  <input
+                    type="date"
+                    value={workshop.date}
+                    onChange={(e) => setWorkshop({ ...workshop, date: e.target.value })}
                     style={{
                       width: '100%',
                       padding: '15px',
@@ -474,9 +475,45 @@ function EditWorkshop() {
                       e.target.style.borderColor = '#e9ecef';
                       e.target.style.boxShadow = 'none';
                     }}
-              required
-            />
-          </div>
+                    required
+                  />
+                </div>
+
+                {/* Heure */}
+                <div>
+                  <label style={{ 
+                    display: 'block', 
+                    marginBottom: '8px', 
+                    fontWeight: 600,
+                    color: '#3a2f1a',
+                    fontSize: '1.1em'
+                  }}>
+                    Heure *
+                  </label>
+                  <input
+                    type="time"
+                    value={workshop.booking_time}
+                    onChange={(e) => setWorkshop({ ...workshop, booking_time: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '15px',
+                      border: '2px solid #e9ecef',
+                      borderRadius: '10px',
+                      fontSize: '1em',
+                      transition: 'all 0.3s ease',
+                      backgroundColor: '#fff'
+                    }}
+                    onFocus={(e) => {
+                      e.target.style.borderColor = '#8a5a44';
+                      e.target.style.boxShadow = '0 0 0 3px rgba(138, 90, 68, 0.1)';
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.borderColor = '#e9ecef';
+                      e.target.style.boxShadow = 'none';
+                    }}
+                    required
+                  />
+                </div>
 
                 {/* Durée */}
           <div>

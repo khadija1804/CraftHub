@@ -318,10 +318,36 @@ function WorkshopDetail3() {
                   {new Date(workshop.date).toLocaleDateString('fr-FR', {
                     year: 'numeric',
                     month: 'long',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
+                    day: 'numeric'
                   })}
+                </p>
+              </div>
+
+              {/* Booking Time */}
+              <div style={{
+                backgroundColor: 'rgba(212, 163, 115, 0.05)',
+                padding: '24px',
+                borderRadius: '16px',
+                border: '1px solid rgba(212, 163, 115, 0.2)'
+              }}>
+                <h3 style={{
+                  fontSize: '1.3em',
+                  color: '#8a5a44',
+                  margin: '0 0 12px 0',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  🕐 Heure
+                </h3>
+                <p style={{
+                  fontSize: '1em',
+                  lineHeight: '1.6',
+                  color: '#3a2f1a',
+                  margin: 0
+                }}>
+                  {workshop.booking_time}
                 </p>
               </div>
 

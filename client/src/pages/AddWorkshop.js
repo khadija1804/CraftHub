@@ -13,6 +13,7 @@ function AddWorkshop() {
     price: 0,
     category: '',
     date: '',
+    booking_time: '',
     duration: '',
     location: '',
     places: 0,
@@ -62,6 +63,7 @@ function AddWorkshop() {
     formData.append('price', workshop.price);
     formData.append('category', workshop.category);
     formData.append('date', workshop.date);
+    formData.append('booking_time', workshop.booking_time);
     formData.append('duration', workshop.duration);
     formData.append('location', workshop.location);
     formData.append('places', workshop.places);
@@ -615,7 +617,7 @@ function AddWorkshop() {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '25px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '25px' }}>
                 <div>
                   <label style={{
                     display: 'block',
@@ -624,12 +626,48 @@ function AddWorkshop() {
                     color: '#5a4a3a',
                     marginBottom: '10px'
                   }}>
-                    Date et heure *
+                    Date *
                   </label>
                   <input
-                    type="datetime-local"
+                    type="date"
                     value={workshop.date}
                     onChange={(e) => setWorkshop({ ...workshop, date: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '15px 20px',
+                      border: '2px solid #e9ecef',
+                      borderRadius: '12px',
+                      fontSize: '1em',
+                      transition: 'all 0.3s ease',
+                      backgroundColor: '#fff',
+                      boxSizing: 'border-box'
+                    }}
+                    onFocus={(e) => {
+                      e.target.style.borderColor = '#d4a373';
+                      e.target.style.boxShadow = '0 0 0 3px rgba(212, 163, 115, 0.1)';
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.borderColor = '#e9ecef';
+                      e.target.style.boxShadow = 'none';
+                    }}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label style={{
+                    display: 'block',
+                    fontSize: '1.1em',
+                    fontWeight: '600',
+                    color: '#5a4a3a',
+                    marginBottom: '10px'
+                  }}>
+                    Heure *
+                  </label>
+                  <input
+                    type="time"
+                    value={workshop.booking_time}
+                    onChange={(e) => setWorkshop({ ...workshop, booking_time: e.target.value })}
                     style={{
                       width: '100%',
                       padding: '15px 20px',

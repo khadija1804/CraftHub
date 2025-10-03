@@ -31,7 +31,7 @@ router.get('/', auth, async (req, res) => {
 router.post('/', auth, upload.array('images', 3), async (req, res) => {
   console.log('Received body:', req.body); // Débogage
   console.log('Received files:', req.files); // Débogage
-  const { title, date, duration, location, category, price, description, places } = req.body;
+  const { title, date, booking_time, duration, location, category, price, description, places } = req.body;
   try {
     if (req.user.role !== 'artisan') {
       return res.status(403).json({ error: 'Only artisans can add workshops' });
@@ -58,6 +58,7 @@ router.post('/', auth, upload.array('images', 3), async (req, res) => {
       price: parseFloat(price) || 0,
       category: category || '',
       date: date || new Date(),
+      booking_time: booking_time || '',
       duration: parseInt(duration) || 0,
       location: location || '',
       places: parseInt(places) || 0,
@@ -82,12 +83,13 @@ router.get('/:id', auth, async (req, res) => {
 });
 
 router.put('/:id', auth, upload.array('images', 3), async (req, res) => {
-  const { title, date, duration, location, category, price, description } = req.body;
+  const { title, date, booking_time, duration, location, category, price, description } = req.body;
   try {
     const workshop = await Workshop.findOne({ _id: req.params.id, artisanId: req.user.id });
     if (!workshop) return res.status(404).json({ error: 'Workshop not found or not authorized' });
     workshop.title = title || workshop.title;
     workshop.date = date || workshop.date;
+    workshop.booking_time = booking_time || workshop.booking_time;
     workshop.duration = duration || workshop.duration;
     workshop.location = location || workshop.location;
     workshop.category = category || workshop.category;
