@@ -1,11 +1,18 @@
 from flask import Flask, request, jsonify
-import cv2
 import numpy as np
 from PIL import Image
 import io
 from flask_cors import CORS
 import logging
 import time
+
+# Gestion optionnelle d'OpenCV
+try:
+    import cv2
+    OPENCV_AVAILABLE = True
+except ImportError:
+    print("Warning: OpenCV not available, image analysis features will be limited")
+    OPENCV_AVAILABLE = False
 
 app = Flask(__name__)
 CORS(app)
@@ -30,31 +37,46 @@ def analyze_image():
     quality_results = []
     for i, image_file in enumerate(images):
         image_data = image_file.read()
-        image = cv2.imdecode(np.frombuffer(image_data, np.uint8), cv2.IMREAD_COLOR)
-
-        if image is None:
-            return jsonify({'error': f'Image {i + 1} invalide ou corrompue.'}), 400
-
-        # Analyse de la netteté
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        sharpness = cv2.Laplacian(gray, cv2.CV_64F).var()
-        logger.info(f"Image {i + 1} - Netteté détectée : {sharpness}")
-
-        if sharpness < MIN_SHARPNESS:
-            return jsonify({'error': f'Image {i + 1} floue, non acceptée. Netteté insuffisante.'}), 400
-
-        # Informations supplémentaires (optionnel)
-        height, width = image.shape[:2]
-        clarity = gray.var()
+        
+        if OPENCV_AVAILABLE:
+            image = cv2.imdecode(np.frombuffer(image_data, np.uint8), cv2.IMREAD_COLOR)
+            if image is None:
+                return jsonify({'error': f'Image {i + 1} invalide ou corrompue.'}), 400
+            
+            # Analyse de la netteté avec OpenCV
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            sharpness = cv2.Laplacian(gray, cv2.CV_64F).var()
+            logger.info(f"Image {i + 1} - Netteté détectée : {sharpness}")
+            
+            if sharpness < MIN_SHARPNESS:
+                return jsonify({'error': f'Image {i + 1} floue, non acceptée. Netteté insuffisante.'}), 400
+            
+            # Informations supplémentaires (optionnel)
+            height, width = image.shape[:2]
+        else:
+            # Analyse basique sans OpenCV
+            try:
+                pil_image = Image.open(io.BytesIO(image_data))
+                width, height = pil_image.size
+                sharpness = 100.0  # Valeur par défaut
+                logger.info(f"Image {i + 1} - Analyse basique (OpenCV non disponible)")
+            except Exception as e:
+                return jsonify({'error': f'Image {i + 1} invalide ou corrompue: {str(e)}'}), 400
+        
+        # Calcul de la clarté
+        if OPENCV_AVAILABLE:
+            clarity = gray.var()
+            avg_color = np.mean(image, axis=(0, 1))
+        else:
+            clarity = 50.0  # Valeur par défaut
+            avg_color = [128, 128, 128]  # Valeur par défaut
+        
         quality_results.append({
             'index': i + 1,
             'sharpness': sharpness,
             'clarity': clarity,
             'resolution': f"{width}x{height}"
         })
-
-        # Classification simple (exemple)
-        avg_color = np.mean(image, axis=(0, 1))
         r, g, b = avg_color
         classification = "Rouge dominant" if r > g + b + 50 else "Vert dominant" if g > r + b + 50 else "Bleu dominant" if b > r + g + 50 else "Multicolore"
         logger.info(f"Image {i + 1} - Classification : {classification}")

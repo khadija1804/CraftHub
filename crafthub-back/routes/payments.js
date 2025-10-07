@@ -2,17 +2,19 @@ const express = require('express');
 const router = express.Router();
 const Subscription = require('../models/Subscription');
 const auth = require('../middleware/auth');
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+// Initialize Stripe only if secret key is provided
+let stripe = null;
+if (process.env.STRIPE_SECRET_KEY && process.env.STRIPE_SECRET_KEY !== 'sk_test_51234567890abcdef') {
+  stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+} else {
+  console.warn('Warning: STRIPE_SECRET_KEY not configured, payment features will be disabled');
+}
+
 const User = require('../models/user');
 const nodemailer = require('nodemailer');
-const Payment = require('../models/Payment');
+const Payment = require('../models/payment');
 const Product = require('../models/product'); // Ajoute cette ligne si elle n'est pas déjà présente
 const Workshop = require('../models/workshop');
-// Validate Stripe secret key
-if (!process.env.STRIPE_SECRET_KEY) {
-  console.error('Error: STRIPE_SECRET_KEY is not defined in .env');
-  process.exit(1);
-}
 
 // Configure Nodemailer transporter
 const transporter = nodemailer.createTransport({

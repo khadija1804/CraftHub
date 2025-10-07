@@ -1,34 +1,43 @@
-# translator.py
 import os
 import traceback
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-
-# --- Hugging Face MarianMT (FR<->EN) ---
-from transformers import MarianMTModel, MarianTokenizer
 import torch
+from transformers import MarianMTModel, MarianTokenizer
+
+# Limite l'utilisation CPU (stabilité sous WSL2)
+torch.set_num_threads(1)
 
 app = Flask(__name__)
-# Autorise ton front React local
-CORS(app, resources={r"/*": {"origins": ["http://localhost:3000"]}})
 
-# =========================
-#  Utilitaires & modèles
-# =========================
+# CORS propre : pas de after_request / before_request, Flask-CORS gère tout
+CORS(
+    app,
+    resources={r"/ai/*": {
+        "origins": [
+            "http://localhost",
+            "http://127.0.0.1",
+            "http://localhost:3000",
+            "http://127.0.0.1:3000"
+        ]
+    }},
+    supports_credentials=False,
+    allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
+    methods=["GET", "POST", "OPTIONS"]
+)
+
+# ============== Utilitaires ==============
 
 def normalize_text(t: str) -> str:
-    """Nettoie légèrement le texte pour éviter les faux négatifs (NBSP, guillemets, espaces)."""
     if not t:
         return ""
-    t = t.replace("\u00A0", " ")  # NBSP -> espace normal
-    # guillemets typographiques -> guillemets simples
+    t = t.replace("\u00A0", " ")
     t = t.replace("“", '"').replace("”", '"').replace("’", "'").replace("‘", "'")
-    return " ".join(t.split())  # compresser espaces
+    return " ".join(t.split())
 
 def detect_lang(text: str) -> str:
-    """Heuristique simple FR/EN/AR."""
     t = (text or "").strip()
-    if any(c in t for c in "ابتثجحخدذرزسشصضطظعغفقكلمنهوي"):  # arabe : simple heuristique
+    if any(c in t for c in "ابتثجحخدذرزسشصضطظعغفقكلمنهوي"):
         return "ar"
     fr_words = [" le ", " la ", " les ", " des ", " un ", " une ", " et ", " est ", " avec ",
                 " pour ", " de ", " du ", " au ", " aux ", " à ", " ça ", " sur "]
@@ -37,44 +46,18 @@ def detect_lang(text: str) -> str:
     fr_hits = sum(w in lc for w in fr_words)
     return "fr" if fr_hits >= en_hits else "en"
 
-# Dictionnaire ultra-simple pour fallback (utile pour FR<->AR ou cas non couverts)
 TRANSLATIONS = {
-    "fr": {
-        "en": {
-            "Bonjour le monde": "Hello world",
-            "40 x 40 cm": "40 x 40 cm",
-        },
-        "ar": {
-            "Bonjour le monde": "مرحبا بالعالم",
-        }
-    },
-    "en": {
-        "fr": {
-            "Hello world": "Bonjour le monde",
-        }
-    },
-    "ar": {
-        "fr": {
-            "مرحبا بالعالم": "Bonjour le monde",
-        }
-    }
+    "fr": {"en": {"Bonjour le monde": "Hello world", "40 x 40 cm": "40 x 40 cm"},
+           "ar": {"Bonjour le monde": "مرحبا بالعالم"}},
+    "en": {"fr": {"Hello world": "Bonjour le monde"}},
+    "ar": {"fr": {"مرحبا بالعالم": "Bonjour le monde"}}
 }
 
 def simple_translate(text: str, source: str, target: str) -> str:
-    """
-    Fallback très simple :
-    1) correspondance exacte via TRANSLATIONS
-    2) quelques phrases FR connues -> EN
-    3) mini glossaire mot-à-mot (limité)
-    """
     txt = normalize_text(text)
-
-    # 1) Dico direct exact
     if source in TRANSLATIONS and target in TRANSLATIONS[source]:
         if txt in TRANSLATIONS[source][target]:
             return TRANSLATIONS[source][target][txt]
-
-    # 2) Phrases FR -> EN (exemples de ton projet)
     if source == "fr" and target == "en":
         phrase_translations = {
             normalize_text(
@@ -102,12 +85,9 @@ def simple_translate(text: str, source: str, target: str) -> str:
             "Its elegant shape and unique appearance make it an ideal decorative piece, whether used alone or with dried flowers. "
             "Available in different natural shades (terracotta, off-white, deep blue).",
         }
-
         key = normalize_text(txt)
         if key in phrase_translations:
             return phrase_translations[key]
-
-        # 3) Mini glossaire (mot à mot) – très limité
         basic = {
             "le": "the", "la": "the", "les": "the", "des": "some", "un": "a", "une": "a",
             "et": "and", "est": "is", "avec": "with", "pour": "for", "de": "of", "du": "of the",
@@ -127,86 +107,87 @@ def simple_translate(text: str, source: str, target: str) -> str:
             cw = w.strip('.,;:!?()"\'').lower()
             out.append(basic.get(cw, w))
         return " ".join(out)
-
-    # Par défaut : renvoyer le texte
     return text
 
-# Charger les modèles Marian une fois (au démarrage)
-# Conseil : lance d’abord warmup_download.py pour mettre en cache les modèles.
-tok_fr_en = MarianTokenizer.from_pretrained("Helsinki-NLP/opus-mt-fr-en")
-mdl_fr_en = MarianMTModel.from_pretrained("Helsinki-NLP/opus-mt-fr-en")
+# ============== Lazy-load des modèles (réduit la RAM au démarrage) ==============
 
-tok_en_fr = MarianTokenizer.from_pretrained("Helsinki-NLP/opus-mt-en-fr")
-mdl_en_fr = MarianMTModel.from_pretrained("Helsinki-NLP/opus-mt-en-fr")
+tok_fr_en = mdl_fr_en = tok_en_fr = mdl_en_fr = None
 
+def load_fr_en():
+    global tok_fr_en, mdl_fr_en
+    if tok_fr_en is None or mdl_fr_en is None:
+        print("⏳ Loading model fr→en…", flush=True)
+        tok_fr_en = MarianTokenizer.from_pretrained("Helsinki-NLP/opus-mt-fr-en")
+        mdl_fr_en = MarianMTModel.from_pretrained("Helsinki-NLP/opus-mt-fr-en")
+        print("✅ fr→en loaded", flush=True)
+
+def load_en_fr():
+    global tok_en_fr, mdl_en_fr
+    if tok_en_fr is None or mdl_en_fr is None:
+        print("⏳ Loading model en→fr…", flush=True)
+        tok_en_fr = MarianTokenizer.from_pretrained("Helsinki-NLP/opus-mt-en-fr")
+        mdl_en_fr = MarianMTModel.from_pretrained("Helsinki-NLP/opus-mt-en-fr")
+        print("✅ en→fr loaded", flush=True)
+
+@torch.inference_mode()
 def translate_fr_en(text: str) -> str:
-    text = text or ""
-    batch = tok_fr_en([text], return_tensors="pt", truncation=True)
+    load_fr_en()
+    batch = tok_fr_en([text or ""], return_tensors="pt", truncation=True)
     gen = mdl_fr_en.generate(**batch, max_new_tokens=400)
     return tok_fr_en.decode(gen[0], skip_special_tokens=True)
 
+@torch.inference_mode()
 def translate_en_fr(text: str) -> str:
-    text = text or ""
-    batch = tok_en_fr([text], return_tensors="pt", truncation=True)
+    load_en_fr()
+    batch = tok_en_fr([text or ""], return_tensors="pt", truncation=True)
     gen = mdl_en_fr.generate(**batch, max_new_tokens=400)
     return tok_en_fr.decode(gen[0], skip_special_tokens=True)
 
-# =========================
-#           API
-# =========================
+# ============== API ==============
 
-@app.route("/ai/translate", methods=["POST", "OPTIONS"])
+@app.route("/health", methods=["GET"])
+def health():
+    return jsonify({"status": "ok", "service": "translator"})
+
+# Pas de OPTIONS manuel : Flask-CORS le fait. POST uniquement.
+@app.route("/ai/translate", methods=["POST"])
 def translate():
-    if request.method == "OPTIONS":
-        return ("", 204)
     try:
         data = request.get_json(silent=True) or {}
         text = (data.get("text") or "").strip()
-        target = (data.get("target") or "").lower()   # ex: "en"
-        source = (data.get("source") or "").lower()   # peut être vide/null
+        target = (data.get("target") or "").lower()
+        source = (data.get("source") or "").lower()
 
-        # --- LOG clair de la requête ---
-        print(f"REQ text[:60]={text[:60]!r} source={source!r} target={target!r}")
+        print(f"REQ text[:60]={text[:60]!r} source={source!r} target={target!r}", flush=True)
 
         if not text or not target:
             return jsonify({"error": "Fields 'text' and 'target' are required"}), 400
 
-        # Détection auto si source non fournie
         if not source:
             source = detect_lang(text)
 
-        # Si même langue, renvoyer tel quel
         if source == target:
-            return jsonify({
-                "translation": text,
-                "source": source,
-                "target": target,
-                "note": "Same language"
-            }), 200
+            return jsonify({"translation": text, "source": source, "target": target, "note": "Same language"}), 200
 
-        # Paires supportées
-        supported_directions = [("fr", "en"), ("en", "fr"), ("fr", "ar"), ("ar", "fr")]
-        if (source, target) not in supported_directions:
+        supported = [("fr", "en"), ("en", "fr"), ("fr", "ar"), ("ar", "fr")]
+        if (source, target) not in supported:
             return jsonify({"error": f"Translation from {source} to {target} not supported yet"}), 400
 
-        # Choix du moteur
         if (source, target) == ("fr", "en"):
             translation = translate_fr_en(text)
         elif (source, target) == ("en", "fr"):
             translation = translate_en_fr(text)
         else:
-            # FR<->AR et autres directions simples : fallback
             translation = simple_translate(text, source, target)
 
-        print(f"🎯 Traduction finale: '{translation}'")
+        print(f"🎯 Traduction finale: '{translation}'", flush=True)
         return jsonify({"translation": translation, "source": source, "target": target}), 200
 
     except Exception:
-        print("❌ ERREUR /ai/translate")
+        print("❌ ERREUR /ai/translate", flush=True)
         traceback.print_exc()
         return jsonify({"error": "Internal error during translation"}), 500
 
 if __name__ == "__main__":
-    # IMPORTANT : pas de reloader ni debug pour éviter double-chargement des modèles
     print("🚀 Serveur de traduction sur http://localhost:5010/ai/translate")
     app.run(host="0.0.0.0", port=5010, debug=False, use_reloader=False)

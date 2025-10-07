@@ -30,6 +30,19 @@ api.interceptors.response.use(
   },
   (error) => {
     console.error('Response error:', error.response?.data || error.message);
+    
+    // Gérer automatiquement les erreurs 401 (Unauthorized)
+    if (error.response?.status === 401) {
+      // Supprimer le token et les données utilisateur
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      
+      // Rediriger vers la page de connexion si on n'y est pas déjà
+      if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
+        window.location.href = '/login';
+      }
+    }
+    
     return Promise.reject(error);
   }
 );

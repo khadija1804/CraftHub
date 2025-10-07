@@ -4,22 +4,20 @@ import json
 
 app = Flask(__name__)
 # Configuration CORS pour permettre les requêtes depuis le frontend React
-CORS(app, resources={
-    r"/*": {
-        "origins": ["http://localhost:3000"],
-        "methods": ["GET", "POST", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization"]
-    }
-})
+CORS(app, origins="*")
 
-# Gérer les requêtes OPTIONS (preflight)
+# Gérer les requêtes OPTIONS (preflight) et CORS
+@app.after_request
+def after_request(response):
+    response.headers.add("Access-Control-Allow-Origin", "*")
+    response.headers.add("Access-Control-Allow-Headers", "Content-Type, Authorization")
+    response.headers.add("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+    return response
+
 @app.before_request
 def handle_preflight():
     if request.method == "OPTIONS":
         response = jsonify({"message": "Preflight OK"})
-        response.headers.add("Access-Control-Allow-Origin", "http://localhost:3000")
-        response.headers.add("Access-Control-Allow-Headers", "Content-Type, Authorization")
-        response.headers.add("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         return response
 
 @app.route('/ai/generate-rag', methods=['POST', 'OPTIONS'])
@@ -74,26 +72,6 @@ def generate_rag():
 @app.route('/health', methods=['GET'])
 def health():
     return jsonify({'status': 'OK', 'message': 'Service AI actif'})
-
-@app.route('/ai/translate', methods=['POST'])
-def translate():
-    try:
-        data = request.get_json()
-        text = data.get('text', '')
-        target = data.get('target', 'fr')
-        source = data.get('source', 'auto')
-        
-        # Simulation de traduction basique
-        return jsonify({
-            'translation': f"[Traduit] {text}",
-            'source': source,
-            'target': target
-        })
-        
-    except Exception as e:
-        return jsonify({
-            'error': f'Erreur lors de la traduction: {str(e)}'
-        }), 500
 
 if __name__ == '__main__':
     print("🚀 Démarrage du serveur RAG sur le port 5011...")

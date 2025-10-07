@@ -1,0 +1,56 @@
+# ===== Translator (MarianMT FR↔EN) =====
+FROM python:3.11-slim
+WORKDIR /app
+
+# Outils build légers + curl pour le healthcheck
+RUN apt-get update && apt-get install -y --no-install-recommends gcc g++ curl \
+  && rm -rf /var/lib/apt/lists/*
+
+# pip + réglages robustes
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_DEFAULT_TIMEOUT=300 \
+    PIP_NO_CACHE_DIR=1 \
+    OMP_NUM_THREADS=1 \
+    MKL_NUM_THREADS=1 \
+    HF_HUB_DISABLE_TELEMETRY=1
+
+# 1) Torch CPU (via index officiel PyTorch)
+RUN python -m pip install --upgrade pip \
+ && pip install --prefer-binary --retries 10 --timeout 600 \
+      --index-url https://download.pytorch.org/whl/cpu \
+      --trusted-host download.pytorch.org \
+      "torch==2.6.0"
+
+# 2) Dépendances Python (PyPI)
+RUN pip install --prefer-binary --retries 10 --timeout 600 \
+      --trusted-host pypi.org --trusted-host files.pythonhosted.org \
+      "transformers>=4.44,<5" \
+      "sentencepiece==0.2.0" \
+      "sacremoses==0.1.1" \
+      flask flask-cors flask-limiter gunicorn
+
+# --- (Optionnel) Pré-chargement des modèles ---
+# ⚠️ Si ta machine est juste en RAM, COMMEENTE ce bloc et utilise le lazy-load (déjà dans translator.py)
+# RUN printf "%s\n" \
+#   "from transformers import MarianMTModel, MarianTokenizer" \
+#   "print('Prefetch Marian FR-EN/EN-FR...')" \
+#   "MarianTokenizer.from_pretrained('Helsinki-NLP/opus-mt-fr-en')" \
+#   "MarianMTModel.from_pretrained('Helsinki-NLP/opus-mt-fr-en', use_safetensors=True)" \
+#   "MarianTokenizer.from_pretrained('Helsinki-NLP/opus-mt-en-fr')" \
+#   "MarianMTModel.from_pretrained('Helsinki-NLP/opus-mt-en-fr', use_safetensors=True)" \
+#   "print('OK')" > /tmp/prefetch_translator.py \
+#  && python /tmp/prefetch_translator.py \
+#  && rm /tmp/prefetch_translator.py
+
+# Code & lancement
+COPY . /app
+
+EXPOSE 5010
+
+# Healthcheck HTTP (fiable, sans Python)
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
+  CMD curl -fsS http://localhost:5010/health || exit 1
+
+# Lancement robuste: Gunicorn (évite les "empty response" en prod)
+# 1 worker + 2 threads + timeout large pour 1er chargement des modèles
+CMD exec gunicorn translator:app -b 0.0.0.0:5010 --workers 1 --threads 2 --timeout 180

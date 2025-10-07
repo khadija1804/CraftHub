@@ -1,5 +1,4 @@
 from flask import Flask, request, jsonify
-from transformers import pipeline
 from flask_cors import CORS
 import logging
 from flask_limiter import Limiter
@@ -7,12 +6,37 @@ from flask_limiter.util import get_remote_address
 import time
 import re
 
+# Gestion optionnelle de transformers
+try:
+    from transformers import pipeline
+    TRANSFORMERS_AVAILABLE = True
+except ImportError:
+    print("Warning: Transformers not available, summarization features will be limited")
+    TRANSFORMERS_AVAILABLE = False
+
 # Configuration du logging
 logging.basicConfig(level=logging.INFO, filename='app.log')
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, origins="*")
+
+# Gérer CORS manuellement pour toutes les réponses
+@app.after_request
+def after_request(response):
+    response.headers.add("Access-Control-Allow-Origin", "*")
+    response.headers.add("Access-Control-Allow-Headers", "Content-Type, Authorization")
+    response.headers.add("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+    return response
+
+@app.route('/', methods=['GET'])
+def health_check():
+    return jsonify({
+        'status': 'ok', 
+        'service': 'resume',
+        'model_loaded': summarizer is not None,
+        'model_loading': model_loading
+    })
 
 # ---- Flask-Limiter v3.x ----
 app.config["RATELIMIT_DEFAULT"] = "100 per minute"
@@ -27,16 +51,29 @@ limiter.init_app(app)
 
 # Charger le modèle avec gestion d'erreur
 summarizer = None
-try:
-    logger.info("Tentative de chargement du modèle distilbart-cnn-12-6...")
-    summarizer = pipeline("summarization", model="sshleifer/distilbart-cnn-12-6", framework="pt")
-    logger.info("Modèle chargé avec succès.")
-except Exception as e:
-    logger.error(f"Échec du chargement du modèle : {e}")
-    summarizer = None
+model_loading = False
+
+def load_model_async():
+    global summarizer, model_loading
+    if TRANSFORMERS_AVAILABLE and not model_loading:
+        model_loading = True
+        try:
+            logger.info("Chargement du modèle distilbart-cnn-12-6 en arrière-plan...")
+            # Utiliser le modèle distilbart-cnn-12-6 (meilleure qualité)
+            summarizer = pipeline("summarization", model="sshleifer/distilbart-cnn-12-6", framework="pt")
+            logger.info("✅ Modèle chargé avec succès!")
+        except Exception as e:
+            logger.error(f"❌ Échec du chargement du modèle : {e}")
+            summarizer = None
+        finally:
+            model_loading = False
+
+# Démarrer le chargement en arrière-plan
+import threading
+threading.Thread(target=load_model_async, daemon=True).start()
 
 @app.route('/summarize', methods=['POST'])
-@limiter.limit("100 per minute")
+# @limiter.limit("100 per minute")  # Temporairement désactivé pour debug
 def summarize():
     start_time = time.time()
 
@@ -54,7 +91,24 @@ def summarize():
         return jsonify({'error': 'Review too long (max 5000 characters)'}), 400
 
     if summarizer is None:
-        return jsonify({'error': 'Service de summarization indisponible, veuillez réessayer plus tard.'}), 503
+
+        # Utiliser un résumé basique si le modèle n'est pas disponible
+        logger.info("Utilisation du résumé basique (modèle non disponible)")
+        words = review.split()
+        if len(words) <= 20:
+            summary = review
+        else:
+            # Prendre les premiers mots et les derniers mots
+            first_part = ' '.join(words[:10])
+            last_part = ' '.join(words[-10:])
+            summary = f"{first_part}... {last_part}"
+        
+        processing_time = time.time() - start_time
+        return jsonify({
+            'summary': summary,
+            'processing_time': round(processing_time, 2),
+            'method': 'basic'
+        })
 
     try:
         word_count = len(review.split())

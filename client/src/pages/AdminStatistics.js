@@ -1,21 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getArtisansStatistics } from '../services/api';
-import { Bar, Line } from 'react-chartjs-2'; // Importer les composants de react-chartjs-2
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  LineElement,
-  PointElement,
-  Title,
-  Tooltip,
-  Legend,
-} from 'chart.js';
+// Auto-enregistrement de tous les éléments/échelles/types
+import 'chart.js/auto';
+import { Chart } from 'react-chartjs-2'; // 👈 générique, permet les datasets mixtes
 
-// Enregistrer les composants nécessaires
-ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title, Tooltip, Legend);
 
 function AdminStatistics() {
   const [stats, setStats] = useState(null);
@@ -24,6 +13,13 @@ function AdminStatistics() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [filteredStats, setFilteredStats] = useState(null);
+
+  // Helper: convertir en nombre sûr
+  const n = (v) => Number.isFinite(Number(v)) ? Number(v) : 0;
+  const formatDateFR = (v) => {
+    const d = new Date(v);
+    return isNaN(d) ? String(v) : d.toLocaleDateString('fr-FR');
+  };
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -44,81 +40,64 @@ function AdminStatistics() {
   }, []);
 
   const handleFilter = () => {
-    if (stats) {
-      const filtered = {
-        ...stats,
-        paymentsByDay: stats.paymentsByDay.filter(item => {
-          const date = new Date(item._id);
-          return (!startDate || date >= new Date(startDate)) && (!endDate || date <= new Date(endDate));
-        })
-      };
-      setFilteredStats(filtered);
-    }
+    if (!stats) return;
+    const filtered = {
+      ...stats,
+      paymentsByDay: (stats.paymentsByDay || []).filter(item => {
+        const d = new Date(item._id);
+        return (!startDate || d >= new Date(startDate)) && (!endDate || d <= new Date(endDate));
+      })
+    };
+    setFilteredStats(filtered);
   };
 
   const exportToCSV = () => {
-  if (!filteredStats) return;
+    if (!filteredStats) return;
+    const SEP = ';';
+    const BOM = '\uFEFF';
+    const esc = (v) => {
+      if (v === null || v === undefined) return '';
+      const s = String(v);
+      return (s.includes('"') || s.includes('\n') || s.includes(SEP))
+        ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const formatDate = (v) => {
+      const d = new Date(v);
+      return isNaN(d) ? String(v) : d.toLocaleDateString('fr-FR');
+    };
 
-  // Excel (FR) comprend mieux le point-virgule; mets ',' si Excel US/EN.
-  const SEP = ';';
+    const byDayHeader = ['Date', 'Payment Count', 'Total Amount (€)'];
+    const byDayRows = (filteredStats.paymentsByDay || []).map(item => ([
+      formatDate(item._id),
+      n(item.paymentCount),
+      n(item.totalAmount).toFixed(2), // si cents: (n(item.totalAmount)/100).toFixed(2)
+    ]));
 
-  // BOM pour qu’Excel reconnaisse l’UTF-8
-  const BOM = '\uFEFF';
+    const byArtisanHeader = ['Artisan Name', 'Payment Count', 'Total Amount (€)'];
+    const byArtisanRows = (filteredStats.paymentsByArtisan || []).map(item => ([
+      item.artisanName || '—',
+      n(item.paymentCount),
+      n(item.totalAmount).toFixed(2), // si cents: (n(item.totalAmount)/100).toFixed(2)
+    ]));
 
-  // Échappement CSV (guillemets, séparateur, retours à la ligne)
-  const esc = (v) => {
-    if (v === null || v === undefined) return '';
-    const s = String(v);
-    return (s.includes('"') || s.includes('\n') || s.includes(SEP))
-      ? `"${s.replace(/"/g, '""')}"`
-      : s;
+    const lines = [];
+    lines.push(esc('Paiements par jour'));
+    lines.push(byDayHeader.map(esc).join(SEP));
+    byDayRows.forEach(r => lines.push(r.map(esc).join(SEP)));
+    lines.push('');
+    lines.push(esc('Paiements par artisan'));
+    lines.push(byArtisanHeader.map(esc).join(SEP));
+    byArtisanRows.forEach(r => lines.push(r.map(esc).join(SEP)));
+
+    const csv = BOM + lines.join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'craft_hub_statistics.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
   };
-
-  // Format date (si _id est une date)
-  const formatDate = (v) => {
-    const d = new Date(v);
-    return isNaN(d) ? String(v) : d.toLocaleDateString('fr-FR');
-  };
-
-  // --- Section 1 : Paiements par jour ---
-  const byDayHeader = ['Date', 'Payment Count', 'Total Amount ($)'];
-  const byDayRows = (filteredStats.paymentsByDay || []).map(item => ([
-    formatDate(item._id),
-    item.paymentCount || 0,
-    ((item.totalAmount || 0) / 100).toFixed(2),
-  ]));
-
-  // --- Section 2 : Paiements par artisan ---
-  const byArtisanHeader = ['Artisan Name', 'Payment Count', 'Total Amount ($)'];
-  const byArtisanRows = (filteredStats.paymentsByArtisan || []).map(item => ([
-    item.artisanName || '—',
-    item.paymentCount || 0,
-    ((item.totalAmount || 0) / 100).toFixed(2),
-  ]));
-
-  // Construction du CSV (2 tableaux séparés par une ligne vide)
-  const lines = [];
-
-  lines.push(esc('Paiements par jour'));
-  lines.push(byDayHeader.map(esc).join(SEP));
-  byDayRows.forEach(r => lines.push(r.map(esc).join(SEP)));
-
-  lines.push(''); // ligne vide séparatrice
-
-  lines.push(esc('Paiements par artisan'));
-  lines.push(byArtisanHeader.map(esc).join(SEP));
-  byArtisanRows.forEach(r => lines.push(r.map(esc).join(SEP)));
-
-  const csv = BOM + lines.join('\n');
-
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = window.URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'craft_hub_statistics.csv';
-  a.click();
-  window.URL.revokeObjectURL(url);
-};
 
   if (loading) {
     return (
@@ -196,24 +175,25 @@ function AdminStatistics() {
     );
   }
 
+  // Données pour le graphique combiné (bar + line)
+  const labels = (filteredStats?.paymentsByDay || []).map(item => formatDateFR(item._id));
   const chartData = {
-    labels: filteredStats?.paymentsByDay.map(item => item._id) || [],
+    labels,
     datasets: [
       {
+        type: 'bar',
         label: 'Montant Total (€)',
-        data: filteredStats?.paymentsByDay.map(item => item.totalAmount.toFixed(2)) || [],
+        data: (filteredStats?.paymentsByDay || []).map(item => n(item.totalAmount)), // si cents: n(item.totalAmount)/100
         backgroundColor: 'rgba(138, 90, 68, 0.6)',
         borderColor: 'rgba(138, 90, 68, 1)',
         borderWidth: 1,
-        type: 'bar',
       },
       {
-        label: 'Nombre de Paiements',
-        data: filteredStats?.paymentsByDay.map(item => item.paymentCount) || [],
-        backgroundColor: 'rgba(212, 163, 115, 0.6)',
-        borderColor: 'rgba(212, 163, 115, 1)',
-        borderWidth: 1,
         type: 'line',
+        label: 'Nombre de Paiements',
+        data: (filteredStats?.paymentsByDay || []).map(item => n(item.paymentCount)),
+        borderWidth: 2,
+        tension: 0.3,
         fill: false,
       },
     ],
@@ -619,7 +599,7 @@ function AdminStatistics() {
                   marginBottom: '10px',
                   fontWeight: '700'
                 }}>
-                  {filteredStats.totalArtisans}
+                  {n(filteredStats.totalArtisans)}
                 </h3>
                 <p style={{
                   fontSize: '1.1em',
@@ -646,7 +626,7 @@ function AdminStatistics() {
                   marginBottom: '10px',
                   fontWeight: '700'
                 }}>
-                  {filteredStats.totalPayments}
+                  {n(filteredStats.totalPayments)}
                 </h3>
                 <p style={{
                   fontSize: '1.1em',
@@ -673,7 +653,7 @@ function AdminStatistics() {
                   marginBottom: '10px',
                   fontWeight: '700'
                 }}>
-                  €{filteredStats.totalRevenue.toFixed(2)}
+                  €{n(filteredStats.totalRevenue).toFixed(2)}
                 </h3>
                 <p style={{
                   fontSize: '1.1em',
@@ -700,7 +680,7 @@ function AdminStatistics() {
                   marginBottom: '10px',
                   fontWeight: '700'
                 }}>
-                  €{filteredStats.averagePayment.toFixed(2)}
+                  €{n(filteredStats.averagePayment).toFixed(2)}
                 </h3>
                 <p style={{
                   fontSize: '1.1em',
@@ -749,14 +729,14 @@ function AdminStatistics() {
                 transition: 'all 0.3s ease'
               }}>
                 <div style={{ fontSize: '3em', marginBottom: '15px' }}>👨‍🎨</div>
-                <h3 style={{
-                  fontSize: '1.8em',
-                  color: '#2e7d32',
-                  marginBottom: '10px',
-                  fontWeight: '700'
-                }}>
-                  {filteredStats.paymentsByArtisan.length}
-                </h3>
+                  <h3 style={{
+                    fontSize: '1.8em',
+                    color: '#2e7d32',
+                    marginBottom: '10px',
+                    fontWeight: '700'
+                  }}>
+                    {n(filteredStats.paymentsByArtisan?.length)}
+                  </h3>
                 <p style={{
                   fontSize: '1.1em',
                   color: '#666',
@@ -764,13 +744,15 @@ function AdminStatistics() {
                 }}>
                   Artisans avec Abonnements
                 </p>
-                <p style={{
-                  fontSize: '0.9em',
-                  color: '#888',
-                  margin: '0'
-                }}>
-                  {filteredStats.totalArtisans > 0 ? Math.round((filteredStats.paymentsByArtisan.length / filteredStats.totalArtisans) * 100) : 0}% du total
-                </p>
+                  <p style={{
+                    fontSize: '0.9em',
+                    color: '#888',
+                    margin: '0'
+                  }}>
+                    {n(filteredStats.totalArtisans) > 0
+                      ? Math.round((n(filteredStats.paymentsByArtisan?.length) / n(filteredStats.totalArtisans)) * 100)
+                      : 0}% du total
+                  </p>
               </div>
 
               {/* Paiements Réussis */}
@@ -784,14 +766,14 @@ function AdminStatistics() {
                 transition: 'all 0.3s ease'
               }}>
                 <div style={{ fontSize: '3em', marginBottom: '15px' }}>✅</div>
-                <h3 style={{
-                  fontSize: '1.8em',
-                  color: '#1976d2',
-                  marginBottom: '10px',
-                  fontWeight: '700'
-                }}>
-                  {filteredStats.paymentStatus?.find(p => p._id === 'paid')?.count || 0}
-                </h3>
+                  <h3 style={{
+                    fontSize: '1.8em',
+                    color: '#1976d2',
+                    marginBottom: '10px',
+                    fontWeight: '700'
+                  }}>
+                    {n(filteredStats.paymentStatus?.find(p => p._id === 'paid')?.count)}
+                  </h3>
                 <p style={{
                   fontSize: '1.1em',
                   color: '#666',
@@ -799,13 +781,15 @@ function AdminStatistics() {
                 }}>
                   Abonnements Réussis
                 </p>
-                <p style={{
-                  fontSize: '0.9em',
-                  color: '#888',
-                  margin: '0'
-                }}>
-                  {filteredStats.totalPayments > 0 ? Math.round(((filteredStats.paymentStatus?.find(p => p._id === 'paid')?.count || 0) / filteredStats.totalPayments) * 100) : 0}% du total
-                </p>
+                  <p style={{
+                    fontSize: '0.9em',
+                    color: '#888',
+                    margin: '0'
+                  }}>
+                    {n(filteredStats.totalPayments) > 0
+                      ? Math.round((n(filteredStats.paymentStatus?.find(p => p._id === 'paid')?.count) / n(filteredStats.totalPayments)) * 100)
+                      : 0}% du total
+                  </p>
               </div>
 
               {/* Paiements Échoués */}
@@ -819,14 +803,15 @@ function AdminStatistics() {
                 transition: 'all 0.3s ease'
               }}>
                 <div style={{ fontSize: '3em', marginBottom: '15px' }}>❌</div>
-                <h3 style={{
-                  fontSize: '1.8em',
-                  color: '#d32f2f',
-                  marginBottom: '10px',
-                  fontWeight: '700'
-                }}>
-                  {(filteredStats.paymentStatus?.find(p => p._id === 'pending')?.count || 0) + (filteredStats.paymentStatus?.find(p => p._id === 'expired')?.count || 0)}
-                </h3>
+                  <h3 style={{
+                    fontSize: '1.8em',
+                    color: '#d32f2f',
+                    marginBottom: '10px',
+                    fontWeight: '700'
+                  }}>
+                    {n(filteredStats.paymentStatus?.find(p => p._id === 'pending')?.count)
+                      + n(filteredStats.paymentStatus?.find(p => p._id === 'expired')?.count)}
+                  </h3>
                 <p style={{
                   fontSize: '1.1em',
                   color: '#666',
@@ -834,13 +819,16 @@ function AdminStatistics() {
                 }}>
                   Abonnements Échoués
                 </p>
-                <p style={{
-                  fontSize: '0.9em',
-                  color: '#888',
-                  margin: '0'
-                }}>
-                  {filteredStats.totalPayments > 0 ? Math.round((((filteredStats.paymentStatus?.find(p => p._id === 'pending')?.count || 0) + (filteredStats.paymentStatus?.find(p => p._id === 'expired')?.count || 0)) / filteredStats.totalPayments) * 100) : 0}% du total
-                </p>
+                  <p style={{
+                    fontSize: '0.9em',
+                    color: '#888',
+                    margin: '0'
+                  }}>
+                    {n(filteredStats.totalPayments) > 0
+                      ? Math.round(((n(filteredStats.paymentStatus?.find(p => p._id === 'pending')?.count)
+                        + n(filteredStats.paymentStatus?.find(p => p._id === 'expired')?.count)) / n(filteredStats.totalPayments)) * 100)
+                      : 0}% du total
+                  </p>
               </div>
 
               {/* Revenus par Artisan Moyen */}
@@ -854,14 +842,16 @@ function AdminStatistics() {
                 transition: 'all 0.3s ease'
               }}>
                 <div style={{ fontSize: '3em', marginBottom: '15px' }}>💰</div>
-                <h3 style={{
-                  fontSize: '1.8em',
-                  color: '#7b1fa2',
-                  marginBottom: '10px',
-                  fontWeight: '700'
-                }}>
-                  ${filteredStats.paymentsByArtisan.length > 0 ? (filteredStats.totalRevenue / filteredStats.paymentsByArtisan.length).toFixed(2) : '0.00'}
-                </h3>
+                  <h3 style={{
+                    fontSize: '1.8em',
+                    color: '#7b1fa2',
+                    marginBottom: '10px',
+                    fontWeight: '700'
+                  }}>
+                    €{(n(filteredStats.paymentsByArtisan?.length) > 0
+                      ? (n(filteredStats.totalRevenue) / n(filteredStats.paymentsByArtisan?.length))
+                      : 0).toFixed(2)}
+                  </h3>
                 <p style={{
                   fontSize: '1.1em',
                   color: '#666',
@@ -954,7 +944,7 @@ function AdminStatistics() {
                           fontWeight: '700',
                           color: index < 3 ? '#fff' : '#2e7d32'
                         }}>
-                          €{item.totalAmount.toFixed(2)}
+                          €{n(item.totalAmount).toFixed(2)}
                         </div>
                       </div>
                     ))}
@@ -1006,7 +996,7 @@ function AdminStatistics() {
                         fontWeight: '700',
                         margin: '0'
                       }}>
-                        {filteredStats.paymentsByDay?.slice(-7).reduce((sum, day) => sum + day.paymentCount, 0) || 0} abonnements
+                        {(filteredStats.paymentsByDay || []).slice(-7).reduce((sum, d) => sum + n(d.paymentCount), 0)} abonnements
                       </p>
                       <p style={{
                         fontSize: '0.9em',
@@ -1039,7 +1029,9 @@ function AdminStatistics() {
                         fontWeight: '700',
                         margin: '0'
                       }}>
-                        {filteredStats.paymentsByDay?.length > 0 ? Math.max(...filteredStats.paymentsByDay.map(day => day.paymentCount)) : 0} abonnements
+                        {(filteredStats.paymentsByDay || []).length > 0
+                          ? Math.max(...(filteredStats.paymentsByDay || []).map(d => n(d.paymentCount)))
+                          : 0} abonnements
                       </p>
                       <p style={{
                         fontSize: '0.9em',
@@ -1074,16 +1066,16 @@ function AdminStatistics() {
                         fontWeight: '700',
                         margin: '0'
                       }}>
-                        €{filteredStats.paymentsByDay?.length > 0 ? 
-                          (filteredStats.paymentsByDay.reduce((sum, day) => sum + day.totalAmount, 0) / filteredStats.paymentsByDay.length).toFixed(2) : 
-                          '0.00'}
+                        €{(filteredStats.paymentsByDay?.length
+                            ? (filteredStats.paymentsByDay.reduce((sum, d) => sum + n(d.totalAmount), 0) / filteredStats.paymentsByDay.length)
+                            : 0).toFixed(2)}
                       </p>
                       <p style={{
                         fontSize: '0.9em',
                         color: '#666',
                         margin: '5px 0 0 0'
                       }}>
-                        sur {filteredStats.paymentsByDay?.length || 0} jours
+                        sur {n(filteredStats.paymentsByDay?.length)} jours
                       </p>
                     </div>
                   </div>
@@ -1118,7 +1110,8 @@ function AdminStatistics() {
                 padding: '20px',
                 boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
               }}>
-                <Bar data={chartData} options={chartOptions} />
+                {/* 👇 Chart combiné (bar + line) */}
+                <Chart type="bar" data={chartData} options={chartOptions} />
               </div>
             </div>
 
@@ -1214,7 +1207,7 @@ function AdminStatistics() {
                           fontSize: '1.1em',
                           borderBottom: '1px solid #e9ecef'
                         }}>
-                          {item.paymentCount}
+                          {n(item.paymentCount)}
                         </td>
                         <td style={{
                           padding: '20px',
@@ -1224,7 +1217,7 @@ function AdminStatistics() {
                           fontSize: '1.2em',
                           borderBottom: '1px solid #e9ecef'
                         }}>
-                          €{item.totalAmount.toFixed(2)}
+                          €{n(item.totalAmount).toFixed(2)}
                         </td>
                     </tr>
                   ))}

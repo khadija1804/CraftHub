@@ -1,6 +1,5 @@
 export async function translateText(text, target, source) {
-  const res = await fetch("http://localhost:5010/ai/translate", { // Option A (Flask)
-    // ou "http://localhost:5000/ai/translate" si Option B (Node)
+  const res = await fetch("http://localhost:5010/ai/translate", {
     method: "POST",
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify({ text, target, source })
@@ -8,6 +7,7 @@ export async function translateText(text, target, source) {
   if (!res.ok) throw new Error("Échec de la traduction");
   return res.json(); // { translation, source, target }
 }
+
 export async function generateRAG({ keywords, contexteProduitMinimal }) {
   const res = await fetch("http://localhost:5011/ai/generate-rag", {
     method: "POST",

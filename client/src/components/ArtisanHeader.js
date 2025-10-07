@@ -7,6 +7,13 @@ function ArtisanHeader() {
 
   useEffect(() => {
     const fetchPendingOrders = async () => {
+      // Vérifier si l'utilisateur est connecté
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setPendingOrdersCount(0);
+        return;
+      }
+
       try {
         const ordersResponse = await getPendingOrders();
         const orders = ordersResponse.data || [];
@@ -21,7 +28,14 @@ function ArtisanHeader() {
         setPendingOrdersCount(pendingCount);
       } catch (err) {
         console.error('Error fetching pending orders:', err);
-        setPendingOrdersCount(0);
+        // Si erreur 401 (Unauthorized), supprimer le token et rediriger
+        if (err.response?.status === 401) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          setPendingOrdersCount(0);
+        } else {
+          setPendingOrdersCount(0);
+        }
       }
     };
 

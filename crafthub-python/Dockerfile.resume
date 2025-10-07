@@ -1,0 +1,41 @@
+# ===== Résumeur (DistilBART CNN) =====
+FROM python:3.11-slim
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends gcc g++ \
+  && rm -rf /var/lib/apt/lists/*
+
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_DEFAULT_TIMEOUT=300 \
+    PIP_NO_CACHE_DIR=1
+
+# 1) Torch CPU (>=2.6) via l’index PyTorch (évite CVE)
+RUN python -m pip install --upgrade pip \
+ && pip install --prefer-binary --retries 10 --timeout 600 \
+      --index-url https://download.pytorch.org/whl/cpu \
+      --trusted-host download.pytorch.org \
+      "torch==2.6.0"
+
+# 2) Reste via PyPI
+RUN pip install --prefer-binary --retries 10 --timeout 600 \
+      --trusted-host pypi.org --trusted-host files.pythonhosted.org \
+      "transformers>=4.44,<5" \
+      "sacremoses==0.1.1" \
+      flask flask-cors flask-limiter
+
+# (Optionnel)
+# ENV HF_HUB_DISABLE_TELEMETRY=1
+# ENV TRANSFORMERS_OFFLINE=1
+
+# Pré-chargement DistilBART CNN (safetensors si dispo)
+RUN printf "%s\n" \
+  "from transformers import pipeline" \
+  "print('Prefetch DistilBART CNN summarization model...')" \
+  "_ = pipeline('summarization', model='sshleifer/distilbart-cnn-12-6', framework='pt', use_safetensors=True)" \
+  "print('OK')" > /tmp/prefetch_resume.py \
+ && python /tmp/prefetch_resume.py \
+ && rm /tmp/prefetch_resume.py
+
+COPY . /app
+EXPOSE 5003
+CMD ["python", "resume.py"]

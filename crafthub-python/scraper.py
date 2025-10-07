@@ -23,7 +23,7 @@ load_dotenv()  # charge .env (SERPAPI_KEY)
 
 # ============== App & Logs ==============
 app = Flask(__name__)
-CORS(app, resources={r"/estimate-price-from-scrape": {"origins": ["http://localhost:3000", "http://localhost:5173"]}})
+CORS(app, resources={r"/estimate-price-from-scrape": {"origins": ["http://localhost:3000", "http://localhost:5173", "http://localhost", "http://localhost:80"]}})
 logging.basicConfig(level=logging.INFO, filename='scraping.log', format="%(asctime)s - %(levelname)s - %(message)s")
 log = logging.getLogger("scraper-multi")
 

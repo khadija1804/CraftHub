@@ -1,0 +1,23 @@
+# Utiliser l'image Python officielle
+FROM python:3.11-slim
+
+# Définir le répertoire de travail
+WORKDIR /app
+
+# Installer les dépendances système nécessaires
+RUN apt-get update && apt-get install -y --no-install-recommends gcc g++ \
+  && rm -rf /var/lib/apt/lists/*
+
+# Copier le fichier requirements.txt
+RUN pip install --no-cache-dir --upgrade pip \
+ && pip install --no-cache-dir flask flask-cors python-dotenv requests
+
+
+# Copier le code source
+COPY . .
+
+# Exposer le port sur lequel l'application Flask écoute
+EXPOSE 5005
+
+# Commande pour démarrer l'application de scraping
+CMD ["python", "scraper.py"]
