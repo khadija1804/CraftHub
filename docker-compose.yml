@@ -69,6 +69,10 @@ services:
     environment:
       FLASK_ENV: production
       PYTHONUNBUFFERED: 1
+      MONGO_URI: mongodb://mongo:27017/craft_hub
+    depends_on:
+      mongo:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:5001/health')"]

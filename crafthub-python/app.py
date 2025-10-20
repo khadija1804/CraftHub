@@ -1,6 +1,11 @@
+# app.py (corrigé)
+
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import json
+
+# ✅ Import du vrai générateur IA (instance globale)
+#    Défini dans real_ai_service.py : real_ai_generator.generate_seo_description(keywords, contexte)
+from real_ai_service import real_ai_generator
 
 app = Flask(__name__)
 # Configuration CORS pour permettre les requêtes depuis le frontend React
@@ -17,52 +22,28 @@ def after_request(response):
 @app.before_request
 def handle_preflight():
     if request.method == "OPTIONS":
-        response = jsonify({"message": "Preflight OK"})
-        return response
+        # Réponse immédiate pour le preflight CORS
+        return jsonify({"message": "Preflight OK"})
 
 @app.route('/ai/generate-rag', methods=['POST', 'OPTIONS'])
 def generate_rag():
     try:
-        data = request.get_json()
+        if request.method == 'OPTIONS':
+            # Laisse after_request ajouter les bons headers
+            return jsonify({"message": "Preflight OK"})
+
+        data = request.get_json(silent=True) or {}
         keywords = data.get('keywords', [])
         contexte_produit = data.get('contexteProduitMinimal', {})
-        
-        # Simulation d'une génération SEO basique
-        nom_produit = contexte_produit.get('nom', 'Produit artisanal')
-        categorie = contexte_produit.get('categorie', 'Artisanat')
-        prix = contexte_produit.get('prix', 0)
-        
-        # Génération d'une description SEO basique
-        description_html = f"""
-        <h3>✨ {nom_produit}</h3>
-        <p><strong>Catégorie :</strong> {categorie}</p>
-        <p><strong>Prix :</strong> {prix}€</p>
-        
-        <h4>🎨 Description Artisanale</h4>
-        <p>Découvrez ce magnifique {nom_produit.lower()} créé avec passion et savoir-faire artisanal. 
-        Chaque pièce est unique et reflète l'attention portée aux détails.</p>
-        
-        <h4>🔍 Mots-clés SEO intégrés :</h4>
-        <ul>
-        {''.join([f'<li><strong>{keyword}</strong></li>' for keyword in keywords])}
-        </ul>
-        
-        <h4>🌟 Caractéristiques</h4>
-        <ul>
-        <li>✅ Fait main avec amour</li>
-        <li>✅ Matériaux de qualité</li>
-        <li>✅ Unique et original</li>
-        <li>✅ Respectueux de l'environnement</li>
-        </ul>
-        
-        <p><em>Parfait pour offrir ou pour vous faire plaisir !</em></p>
-        """
-        
+
+        # ✅ Appel du générateur IA varié (catégories, intros, CTA, mots-clés, etc.)
+        description_html = real_ai_generator.generate_seo_description(keywords, contexte_produit)
+
         return jsonify({
             'descriptionHtml': description_html,
             'success': True
         })
-        
+
     except Exception as e:
         return jsonify({
             'error': f'Erreur lors de la génération: {str(e)}',

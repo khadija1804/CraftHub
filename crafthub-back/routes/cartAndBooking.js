@@ -261,9 +261,67 @@ router.delete('/cart/remove/:productId', auth, async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+// GET /api/bookings/pending-confirmations?minAgeMin=5
+router.get('/pending-confirmations', async (req, res) => {
+  try {
+    const minAgeMin = Number(req.query.minAgeMin ?? 5); // attends 5 min avant d’envoyer
+    const olderThan = new Date(Date.now() - minAgeMin * 60 * 1000);
+
+    const bookings = await Booking.find({
+      status: 'confirmed',
+      createdAt: { $lte: olderThan },
+      $or: [
+        { confirmationEmailSentAt: { $exists: false } },
+        { confirmationEmailSentAt: null }
+      ],
+    })
+      .populate('userId', 'email prenom nom')
+      .populate('workshopId', 'title location  date booking_time')
+      .lean();
+
+    const formatted = bookings.map(b => ({
+      id: b._id,
+      status: b.status,
+      created_at: b.createdAt,
+
+      // Données email
+      email: b?.userId?.email,
+      first_name: b?.userId?.prenom,
+      last_name:  b?.userId?.nom,
+
+      title:      b?.workshopId?.title,
+      location:   b?.workshopId?.location,
+      workshop_date: b?.workshopId?.date,   // ⚠️ adapte au vrai champ
+      booking_time:  b?.workshopId?.booking_time,
+    }));
+
+    res.json(formatted);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch pending confirmations' });
+  }
+});
+// PATCH /api/bookings/:id/mark-confirmation-sent
+router.patch('/:id/mark-confirmation-sent', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updated = await Booking.findOneAndUpdate(
+      { _id: id },
+      { $set: { confirmationEmailSentAt: new Date() } },
+      { new: true }
+    ).lean();
+
+    if (!updated) return res.status(404).json({ error: 'Booking not found' });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to mark confirmation as sent' });
+  }
+});
+
 // Route pour récupérer les réservations confirmées récentes
 // Route pour récupérer les réservations confirmées récentes
-router.get('/recent-confirmed', async (req, res) => {
+/*router.get('/recent-confirmed', async (req, res) => {
   try {
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
     const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
@@ -300,6 +358,6 @@ router.get('/recent-confirmed', async (req, res) => {
     console.error('Error fetching recent confirmed bookings:', error);
     res.status(500).json({ error: error.message });
   }
-});
+});*/
 
 module.exports = router;
