@@ -5,8 +5,11 @@ Service de génération SEO avec IA réelle
 
 import random
 import logging
-from typing import List, Dict
+from typing import List, Dict, Optional
 import os
+import json
+import time
+import requests
 
 # Configuration du logging
 logging.basicConfig(level=logging.INFO)
@@ -34,11 +37,137 @@ class RealAISEOGenerator:
             self.is_loaded = False
     
     def generate_seo_description(self, keywords: List[str], contexte: Dict) -> str:
-        """Génère une description SEO avec un vrai modèle IA"""
-        # Pour l'instant, utilise toujours la génération variée
-        # TODO: Implémenter le vrai modèle IA quand les dépendances seront stables
-        logger.info("🎲 Génération de description variée...")
+        """Génère une description SEO avec un vrai modèle IA si la clé est présente, sinon fallback varié."""
+        try:
+            api_key = os.getenv("SEOGeneration") or os.getenv("OPENROUTER_API_KEY")
+            use_remote = bool(api_key)
+            if use_remote:
+                logger.info("🤖 DeepSeek via OpenRouter activé (clé détectée)")
+                html = self._generate_with_deepseek_openrouter(
+                    keywords=keywords,
+                    contexte=contexte,
+                    api_key=api_key,
+                    model="deepseek/deepseek-r1:free",
+                    temperature=float(os.getenv("SEO_TEMPERATURE", "0.6")),
+                    top_p=float(os.getenv("SEO_TOP_P", "0.9")),
+                    max_tokens=int(os.getenv("SEO_MAX_TOKENS", "400")),
+                    request_timeout_sec=int(os.getenv("SEO_TIMEOUT_SEC", "30")),
+                )
+                if html:
+                    return html
+                logger.warning("⚠️ Fallback local: génération variée (échec appel DeepSeek)")
+        except Exception as e:
+            logger.error(f"❌ Erreur DeepSeek/OpenRouter: {e}")
+            # Fallback en dessous
+
+        logger.info("🎲 Génération locale variée (fallback)...")
         return self._generate_varied_description(keywords, contexte)
+
+    def _generate_with_deepseek_openrouter(
+        self,
+        *,
+        keywords: List[str],
+        contexte: Dict,
+        api_key: str,
+        model: str,
+        temperature: float,
+        top_p: float,
+        max_tokens: int,
+        request_timeout_sec: int,
+    ) -> Optional[str]:
+        """Appelle l'API OpenAI-compatible (OpenRouter) pour générer un HTML SEO concis.
+
+        Retourne du HTML ou None en cas d'erreur.
+        """
+        base_url = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+
+        nom = (contexte or {}).get("nom", "Produit artisanal")
+        categorie = (contexte or {}).get("categorie", "Artisanat")
+        prix = (contexte or {}).get("prix", 0)
+        mots_cles = ", ".join([k for k in (keywords or []) if k])
+
+        system_prompt = (
+            "Tu es un expert SEO e-commerce. Rends un HTML concis, sémantique et clair. "
+            "Respecte strictement les contraintes et ne renvoie que le HTML."
+        )
+        user_prompt = f"""
+Contexte:
+- Nom: {nom}
+- Catégorie: {categorie}
+- Prix: {prix}€
+- Mots-clés: {mots_cles}
+
+Contraintes:
+- 120–200 mots
+- HTML sémantique: <h3>, <h4>, <p>, <ul>/<li>
+- Intégrer les mots-clés naturellement (zéro bourrage)
+- 3–5 bénéfices concrets
+- CTA doux
+- Retourne uniquement le HTML
+""".strip()
+
+        payload = {
+            "model": model,
+            "temperature": temperature,
+            "top_p": top_p,
+            "max_tokens": max_tokens,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+        }
+
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        }
+
+        url = f"{base_url}/chat/completions"
+        start_ts = time.time()
+        try:
+            resp = requests.post(url, headers=headers, data=json.dumps(payload), timeout=request_timeout_sec)
+            latency_ms = int((time.time() - start_ts) * 1000)
+            logger.info(f"🌐 OpenRouter chat/completions status={resp.status_code} latencyMs={latency_ms}")
+            if resp.status_code != 200:
+                logger.warning(f"Réponse non 200: {resp.text[:200]}")
+                return None
+
+            data = resp.json()
+            # Format OpenAI-like
+            choice = (data.get("choices") or [{}])[0]
+            message = choice.get("message") or {}
+            content = (message.get("content") or "").strip()
+            if not content:
+                return None
+
+            # Par sécurité: on garde seulement un sous-ensemble HTML simple
+            return self._sanitize_html_allowlist(content)
+        except Exception as e:
+            logger.error(f"Exception appel OpenRouter: {e}")
+            return None
+
+    def _sanitize_html_allowlist(self, html: str) -> str:
+        """Nettoyage simple: conserve quelques balises autorisées, supprime le reste grossièrement.
+
+        NB: Ceci est un nettoyage minimal côté serveur. À compléter si besoin.
+        """
+        if not html:
+            return ""
+        allowed_tags = ["h3", "h4", "p", "ul", "li", "strong", "em"]
+
+        # Suppression très basique des balises non autorisées
+        # (Pour plus de robustesse, utiliser une lib d'assainissement HTML si nécessaire)
+        import re
+
+        def replace_tag(match):
+            tag = match.group(1).lower()
+            if tag in allowed_tags:
+                return match.group(0)
+            return ""  # retire la balise non autorisée
+
+        # ouvre/ferme
+        html = re.sub(r"</?([a-zA-Z0-9]+)[^>]*>", replace_tag, html)
+        return html
     
     def _generate_varied_description(self, keywords: List[str], contexte: Dict) -> str:
         """Génère une description variée avec des templates intelligents"""
@@ -167,13 +296,18 @@ class RealAISEOGenerator:
     
     def _integrate_keywords_variedly(self, keywords: List[str], text: str) -> str:
         """Intègre les mots-clés de manière naturelle dans le texte"""
-        # Intégration naturelle des mots-clés
+        # Intégration naturelle des mots-clés (robuste même si liste vide)
+        primary = keywords[0] if len(keywords) >= 1 else "artisanat"
+        secondary = keywords[1] if len(keywords) >= 2 else "qualité"
+        top_two = ", ".join(keywords[:2]) if keywords else "artisanat, qualité"
+        all_joined = ", ".join(keywords) if keywords else "artisanat, qualité"
+
         keyword_integrations = [
-            f"Cette création met en valeur les {', '.join(keywords[:2])} avec élégance",
-            f"Les {keywords[0]} et {keywords[1] if len(keywords) > 1 else 'qualité'} se marient parfaitement",
-            f"Une pièce qui célèbre l'{keywords[0]} et l'artisanat",
-            f"Les {', '.join(keywords)} sont au cœur de cette création unique",
-            f"Cette œuvre honore les {keywords[0]} et le savoir-faire traditionnel"
+            f"Cette création met en valeur les {top_two} avec élégance",
+            f"Les {primary} et {secondary} se marient parfaitement",
+            f"Une pièce qui célèbre l'{primary} et l'artisanat",
+            f"Les {all_joined} sont au cœur de cette création unique",
+            f"Cette œuvre honore les {primary} et le savoir-faire traditionnel"
         ]
         return random.choice(keyword_integrations)
     
