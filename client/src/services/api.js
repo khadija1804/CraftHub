@@ -95,6 +95,7 @@ export const confirmPayment = (payload) => api.post('/payments/confirm-payment',
 export const confirmPaymentRes = (payload) => api.post('/payments/confirm-payment-res', payload);
 
 export const getPendingOrders = () => api.get('/payments/pending-orders');
+export const getAllOrders = () => api.get('/payments/all-orders');
 
 export const confirmShipment = (data) => api.post('/payments/confirm-shipment', data);
 

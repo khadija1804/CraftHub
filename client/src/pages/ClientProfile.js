@@ -143,7 +143,7 @@ function ClientProfile() {
   return (
     <div
       style={{
-        fontFamily: '"Georgia", serif',
+        fontFamily: '"Inter", "Segoe UI", "Roboto", sans-serif',
         color: "#3a2f1a",
         minHeight: "100vh",
         backgroundColor: "#f8f1e9",
@@ -216,8 +216,48 @@ function ClientProfile() {
               e.target.style.background = 'rgba(255,255,255,0.1)';
               e.target.style.transform = 'translateY(0)';
             }}>
-            Explorer
-          </Link>
+              Explorer
+            </Link>
+            <Link to="/favorites-cart" style={{
+              color: '#fff',
+              textDecoration: 'none',
+              fontWeight: 600,
+              fontSize: '1.1em',
+              padding: '10px 20px',
+              borderRadius: '25px',
+              transition: 'all 0.3s ease',
+              background: 'rgba(255,255,255,0.1)',
+              backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(255,255,255,0.2)'
+            }} onMouseOver={(e) => {
+              e.target.style.background = 'rgba(255,255,255,0.2)';
+              e.target.style.transform = 'translateY(-2px)';
+            }} onMouseOut={(e) => {
+              e.target.style.background = 'rgba(255,255,255,0.1)';
+              e.target.style.transform = 'translateY(0)';
+            }}>
+              Favoris
+            </Link>
+            <Link to="/panier" style={{
+              color: '#fff',
+              textDecoration: 'none',
+              fontWeight: 600,
+              fontSize: '1.1em',
+              padding: '10px 20px',
+              borderRadius: '25px',
+              transition: 'all 0.3s ease',
+              background: 'rgba(255,255,255,0.1)',
+              backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(255,255,255,0.2)'
+            }} onMouseOver={(e) => {
+              e.target.style.background = 'rgba(255,255,255,0.2)';
+              e.target.style.transform = 'translateY(-2px)';
+            }} onMouseOut={(e) => {
+              e.target.style.background = 'rgba(255,255,255,0.1)';
+              e.target.style.transform = 'translateY(0)';
+            }}>
+              Panier
+            </Link>
             <Link to="/workshop-booking" style={{
               color: '#fff',
               textDecoration: 'none',
@@ -236,8 +276,8 @@ function ClientProfile() {
               e.target.style.background = 'rgba(255,255,255,0.1)';
               e.target.style.transform = 'translateY(0)';
             }}>
-            Réservations
-          </Link>
+              Réservations
+            </Link>
             <Link to="/client-profile" style={{
               color: '#fff',
               textDecoration: 'none',
@@ -256,8 +296,8 @@ function ClientProfile() {
               e.target.style.background = 'rgba(255,255,255,0.2)';
               e.target.style.transform = 'translateY(0)';
             }}>
-            Profil
-          </Link>
+              Profil
+            </Link>
             <Link to="/login" onClick={handleLogout} style={{
               color: '#8a5a44',
               textDecoration: 'none',
@@ -277,9 +317,9 @@ function ClientProfile() {
               e.target.style.transform = 'translateY(0)';
               e.target.style.boxShadow = '0 4px 15px rgba(0,0,0,0.2)';
             }}>
-            Déconnexion
-          </Link>
-        </nav>
+              Déconnexion
+            </Link>
+          </nav>
         </div>
       </header>
 

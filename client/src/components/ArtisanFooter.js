@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 function ArtisanFooter() {
   return (
     <footer style={{
+      fontFamily: '"Inter", "Segoe UI", "Roboto", sans-serif',
       background: 'linear-gradient(135deg, #8a5a44, #d4a373)',
       color: '#fff',
       padding: '60px 0 40px',

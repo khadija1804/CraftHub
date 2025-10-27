@@ -169,13 +169,35 @@ useEffect(() => {
       });
       const data = await response.json();
       if (!response.ok) {
-        toast.error(data.error); // Pop-up pour erreur d'image floue
+        // Récupérer la raison de rejet depuis les détails
+        const rejectionReason = data.details?.rejection_reason || 'unknown';
+        
+        console.error('Erreur validation image:', data);
+        
+        // Déterminer le message à afficher selon la raison
+        let displayMessage = '';
+        
+        if (rejectionReason === 'nettete_insuffisante') {
+          // Problème de netteté
+          displayMessage = '📐 Image rejetée : Netteté insuffisante (image trop floue)';
+        } else if (rejectionReason === 'contenu_inapproprie') {
+          // Contenu inapproprié (violence, armes, pornographie, etc.)
+          displayMessage = '🚫 Image rejetée : Contenu inapproprié détecté';
+        } else {
+          // Cas par défaut
+          displayMessage = 'Image rejetée : ' + (data.details?.error || data.error || 'Raison inconnue');
+        }
+        
+        toast.error(displayMessage, {
+          position: "top-center",
+          autoClose: 6000,
+        });
         return false;
       }
-      toast.success('Images validées avec succès !'); // Pop-up de succès
+      toast.success('✅ Images validées avec succès !');
       return true;
     } catch (err) {
-      toast.error('Erreur lors de l’analyse des images.');
+      toast.error('❌ Erreur lors de l\'analyse des images.');
       return false;
     }
   };

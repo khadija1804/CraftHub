@@ -1,24 +1,36 @@
-# Utiliser l'image Python officielle
+# Image Python légère
 FROM python:3.11-slim
 
-# Définir le répertoire de travail
+# Bonnes pratiques + cache Hugging Face hors image
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    HF_HOME=/app/.cache/huggingface
+
 WORKDIR /app
 
-# Installer les dépendances système nécessaires
-RUN pip install --no-cache-dir --upgrade pip \
- && pip install --no-cache-dir flask flask-cors python-dotenv requests
+# Dépendances système minimales (OpenCV headless + Torch CPU)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libglib2.0-0 \
+    libgomp1 \
+ && rm -rf /var/lib/apt/lists/*
 
+# Librairies Python — Torch CPU-only (image bien plus légère)
+RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir \
+      "flask==2.3.3" \
+      "flask-cors==4.0.0" \
+      "opencv-python-headless==4.10.0.84" \
+      "transformers==4.35.2" \
+      "torch==2.1.1+cpu" \
+      "torchvision==0.16.1+cpu" \
+      "pillow==10.0.1" \
+      "numpy==1.24.3" \
+      "requests==2.31.0" \
+      -f https://download.pytorch.org/whl/torch_stable.html
 
-RUN pip install --no-cache-dir --upgrade pip \
- && pip install --no-cache-dir \
-      flask flask-cors pillow numpy \
-      "opencv-python-headless==4.10.0.84"
-
-# Copier le code source
+# Copier le code en dernier pour maximiser l'effet du cache
 COPY . .
 
-# Exposer le port sur lequel l'application Flask écoute
 EXPOSE 5007
-
-# Commande pour démarrer l'application d'analyse d'images
 CMD ["python", "image_analyzer.py"]

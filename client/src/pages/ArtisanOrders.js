@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { getPendingOrders, confirmShipment } from '../services/api';
+import { getPendingOrders, getAllOrders, confirmShipment } from '../services/api';
+import api from '../services/api';
 import ArtisanHeader from '../components/ArtisanHeader';
 import ArtisanFooter from '../components/ArtisanFooter';
 import NotificationToast from '../components/NotificationToast';
@@ -8,18 +9,33 @@ import useNotification from '../hooks/useNotification';
 
 function ArtisanOrders() {
   const [orders, setOrders] = useState([]);
+  const [allOrders, setAllOrders] = useState([]);
+  const [allOrdersStats, setAllOrdersStats] = useState([]);
+  const [activeTab, setActiveTab] = useState('pending');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const { notification, showNotification, hideNotification } = useNotification();
 
   useEffect(() => {
     const fetchData = async () => {
+      setLoading(true);
       try {
-        const ordersResponse = await getPendingOrders();
-        console.log('Orders response:', ordersResponse.data); // Vérifier les données
-        setOrders(ordersResponse.data || []);
+        const [pendingResponse, allResponse, allOrdersResponse] = await Promise.all([
+          getPendingOrders(),
+          getAllOrders(),
+          api.get('/payments/all-orders-stats') // Nouvelle API pour les statistiques
+        ]);
+        console.log('Pending orders response:', pendingResponse.data);
+        console.log('All orders response:', allResponse.data);
+        console.log('All orders stats response:', allOrdersResponse.data);
+        setOrders(pendingResponse.data || []);
+        setAllOrders(allResponse.data || []);
+        setAllOrdersStats(allOrdersResponse.data || []); // Pour les statistiques
       } catch (err) {
         setError(`Erreur lors du chargement des données: ${err.response?.data?.error || err.message}`);
         console.error('Fetch Error:', err);
+      } finally {
+        setLoading(false);
       }
     };
     fetchData();
@@ -38,11 +54,50 @@ function ArtisanOrders() {
             }
           : order
       ));
+      // Mettre à jour aussi l'historique
+      setAllOrders(allOrders.map(order =>
+        order._id.toString() === paymentId
+          ? {
+              ...order,
+              items: order.items.map(item =>
+                item._id.toString() === itemId ? { ...item, status: 'completed' } : item
+              ),
+            }
+          : order
+      ));
+      // Mettre à jour aussi les statistiques
+      setAllOrdersStats(allOrdersStats.map(order =>
+        order._id.toString() === paymentId
+          ? {
+              ...order,
+              items: order.items.map(item =>
+                item._id.toString() === itemId ? { ...item, status: 'completed' } : item
+              ),
+            }
+          : order
+      ));
       showNotification('Commande marquée comme envoyée !', 'success');
     } catch (err) {
       showNotification('Erreur lors de la confirmation d\'envoi.', 'error');
       console.error('Confirm Shipment Error:', err);
     }
+  };
+
+  // Fonction pour obtenir les données à afficher selon l'onglet actif
+  const getDisplayData = () => {
+    return activeTab === 'pending' ? orders : allOrders;
+  };
+
+  // Fonction pour formater la date
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('fr-FR', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   return (
@@ -132,7 +187,7 @@ function ArtisanOrders() {
               color: '#8a5a44',
               fontWeight: 600,
               fontSize: '1.1em'
-            }}>Gestion des Commandes</span>
+            }}>Gestion des Commandes Produits</span>
           </div>
 
           <h1 style={{
@@ -149,7 +204,7 @@ function ArtisanOrders() {
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text'
-            }}> Commandes</span>
+            }}> Commandes Produits</span>
           </h1>
 
           <p style={{
@@ -159,7 +214,7 @@ function ArtisanOrders() {
             margin: '0 auto 50px',
             lineHeight: '1.6'
           }}>
-            Gérez efficacement vos commandes, suivez les expéditions et maintenez vos clients informés.
+            Gérez efficacement vos commandes de produits, suivez les expéditions et maintenez vos clients informés.
           </p>
 
           {/* Statistics Cards */}
@@ -187,13 +242,15 @@ function ArtisanOrders() {
                 color: '#8a5a44',
                 marginBottom: '5px'
               }}>
-                {orders.filter(payment => payment.type === 'cart').length}
+                {allOrdersStats.reduce((total, payment) => 
+                  total + payment.items.length, 0
+                )}
               </div>
               <div style={{
                 color: '#6b5b47',
                 fontSize: '1em',
                 fontWeight: 600
-              }}>Commandes Total</div>
+              }}>Articles Produits</div>
             </div>
 
             <div style={{
@@ -213,11 +270,9 @@ function ArtisanOrders() {
                 color: '#ff6b6b',
                 marginBottom: '5px'
               }}>
-                {orders
-                  .filter(payment => payment.type === 'cart')
-                  .reduce((total, payment) => 
-                    total + payment.items.filter(item => item.status === 'pending').length, 0
-                  )}
+                {allOrdersStats.reduce((total, payment) => 
+                  total + payment.items.filter(item => item.status === 'pending').length, 0
+                )}
               </div>
               <div style={{
                 color: '#6b5b47',
@@ -243,11 +298,9 @@ function ArtisanOrders() {
                 color: '#4ecdc4',
                 marginBottom: '5px'
               }}>
-                {orders
-                  .filter(payment => payment.type === 'cart')
-                  .reduce((total, payment) => 
-                    total + payment.items.filter(item => item.status === 'completed').length, 0
-                  )}
+                {allOrdersStats.reduce((total, payment) => 
+                  total + payment.items.filter(item => item.status === 'completed').length, 0
+                )}
               </div>
               <div style={{
                 color: '#6b5b47',
@@ -255,6 +308,99 @@ function ArtisanOrders() {
                 fontWeight: 600
               }}>Expédiées</div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ===== Tab Navigation ===== */}
+      <section style={{
+        background: '#fff',
+        padding: '30px 0',
+        borderBottom: '1px solid #e8e8e8',
+        position: 'relative',
+        zIndex: 10
+      }}>
+        <div style={{
+          maxWidth: '1200px',
+          margin: '0 auto',
+          padding: '0 30px'
+        }}>
+          <div style={{
+            display: 'flex',
+            gap: '20px',
+            justifyContent: 'center',
+            flexWrap: 'wrap'
+          }}>
+            <button
+              onClick={() => setActiveTab('pending')}
+              style={{
+                padding: '15px 40px',
+                fontSize: '1.1em',
+                fontWeight: 700,
+                border: 'none',
+                borderRadius: '15px',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                background: activeTab === 'pending' 
+                  ? 'linear-gradient(135deg, #8a5a44, #d4a373)' 
+                  : 'linear-gradient(135deg, #e9ecef, #dee2e6)',
+                color: activeTab === 'pending' ? '#fff' : '#6c757d',
+                boxShadow: activeTab === 'pending' 
+                  ? '0 8px 20px rgba(138, 90, 68, 0.3)' 
+                  : '0 4px 10px rgba(0,0,0,0.1)',
+                transform: activeTab === 'pending' ? 'translateY(-2px)' : 'none',
+                minWidth: '200px'
+              }}
+              onMouseOver={(e) => {
+                if (activeTab !== 'pending') {
+                  e.target.style.transform = 'translateY(-2px)';
+                  e.target.style.boxShadow = '0 6px 15px rgba(0,0,0,0.15)';
+                }
+              }}
+              onMouseOut={(e) => {
+                if (activeTab !== 'pending') {
+                  e.target.style.transform = 'none';
+                  e.target.style.boxShadow = '0 4px 10px rgba(0,0,0,0.1)';
+                }
+              }}
+            >
+              📋 En attente ({orders.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('history')}
+              style={{
+                padding: '15px 40px',
+                fontSize: '1.1em',
+                fontWeight: 700,
+                border: 'none',
+                borderRadius: '15px',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                background: activeTab === 'history' 
+                  ? 'linear-gradient(135deg, #8a5a44, #d4a373)' 
+                  : 'linear-gradient(135deg, #e9ecef, #dee2e6)',
+                color: activeTab === 'history' ? '#fff' : '#6c757d',
+                boxShadow: activeTab === 'history' 
+                  ? '0 8px 20px rgba(138, 90, 68, 0.3)' 
+                  : '0 4px 10px rgba(0,0,0,0.1)',
+                transform: activeTab === 'history' ? 'translateY(-2px)' : 'none',
+                minWidth: '200px'
+              }}
+              onMouseOver={(e) => {
+                if (activeTab !== 'history') {
+                  e.target.style.transform = 'translateY(-2px)';
+                  e.target.style.boxShadow = '0 6px 15px rgba(0,0,0,0.15)';
+                }
+              }}
+              onMouseOut={(e) => {
+                if (activeTab !== 'history') {
+                  e.target.style.transform = 'none';
+                  e.target.style.boxShadow = '0 4px 10px rgba(0,0,0,0.1)';
+                }
+              }}
+            >
+              📊 Historique Produits ({allOrders.reduce((total, payment) => total + payment.items.length, 0)})
+            </button>
           </div>
         </div>
       </section>
@@ -288,8 +434,33 @@ function ArtisanOrders() {
             </div>
           )}
 
+          {/* Loading State */}
+          {loading && (
+            <div style={{
+              background: '#fff',
+              padding: '80px 40px',
+              borderRadius: '20px',
+              boxShadow: '0 15px 35px rgba(0,0,0,0.1)',
+              border: '1px solid rgba(212, 163, 115, 0.2)',
+              textAlign: 'center'
+            }}>
+              <div style={{
+                fontSize: '3em',
+                marginBottom: '20px',
+                animation: 'spin 1s linear infinite'
+              }}>⏳</div>
+              <h3 style={{
+                color: '#8a5a44',
+                fontSize: '1.5em',
+                marginBottom: '10px'
+              }}>
+                Chargement des commandes...
+              </h3>
+            </div>
+          )}
+
           {/* Empty State */}
-          {orders.length === 0 && !error && (
+          {!loading && getDisplayData().length === 0 && !error && (
             <div style={{
               background: '#fff',
               padding: '80px 40px',
@@ -309,7 +480,7 @@ function ArtisanOrders() {
                 color: '#3a2f1a',
                 marginBottom: '20px'
               }}>
-                Aucune commande en attente
+                {activeTab === 'pending' ? 'Aucune commande produit en attente' : 'Aucun historique de commandes produits'}
               </h3>
               <p style={{
                 fontSize: '1.2em',
@@ -318,8 +489,10 @@ function ArtisanOrders() {
                 maxWidth: '500px',
                 margin: '0 auto 30px'
               }}>
-                Vous n'avez actuellement aucune commande en attente de traitement. 
-                Vos nouvelles commandes apparaîtront ici.
+                {activeTab === 'pending' 
+                  ? 'Vous n\'avez actuellement aucune commande de produit en attente de traitement. Vos nouvelles commandes de produits apparaîtront ici.'
+                  : 'Vous n\'avez pas encore d\'historique de commandes de produits. Vos commandes de produits passées apparaîtront ici une fois que vous aurez des ventes.'
+                }
               </p>
               <Link to="/artisan-home" style={{
                 display: 'inline-flex',
@@ -348,13 +521,13 @@ function ArtisanOrders() {
           )}
 
           {/* Orders List */}
-          {orders.length > 0 && (
+          {!loading && (
             <div style={{
               display: 'flex',
               flexDirection: 'column',
               gap: '30px'
             }}>
-              {orders
+              {getDisplayData()
                 .filter(payment => payment.type === 'cart')
                 .map((payment) => (
                   <div key={payment._id} style={{
@@ -392,7 +565,18 @@ function ArtisanOrders() {
                           opacity: 0.9,
                           margin: 0
                         }}>
-                          Client: {payment.userId?.email || 'Non disponible'}
+                          Client: {payment.userId?.prenom && payment.userId?.nom 
+                            ? `${payment.userId.prenom} ${payment.userId.nom}` 
+                            : payment.userId?.email || 'Non disponible'
+                          }
+                        </p>
+                        <p style={{
+                          fontSize: '0.9em',
+                          opacity: 0.8,
+                          margin: '5px 0 0 0'
+                        }}>
+                          📦 {payment.items.length} article{payment.items.length > 1 ? 's' : ''} • 
+                          💰 Total: {payment.amount ? `${payment.amount.toFixed(2)} €` : 'N/A'}
                         </p>
                       </div>
                       <div style={{
@@ -403,14 +587,21 @@ function ArtisanOrders() {
                           fontWeight: 600,
                           marginBottom: '5px'
                         }}>
-                          {new Date(payment.createdAt).toLocaleDateString('fr-FR')}
+                          {formatDate(payment.createdAt)}
                         </div>
-                        <div style={{
-                          fontSize: '0.9em',
-                          opacity: 0.8
-                        }}>
-                          {new Date(payment.createdAt).toLocaleTimeString('fr-FR')}
-                        </div>
+                        {activeTab === 'history' && (
+                          <div style={{
+                            fontSize: '0.9em',
+                            opacity: 0.8,
+                            marginTop: '5px',
+                            padding: '4px 8px',
+                            background: 'rgba(255,255,255,0.2)',
+                            borderRadius: '10px',
+                            display: 'inline-block'
+                          }}>
+                            {payment.status === 'succeeded' ? '✅ Payé' : '⏳ En attente'}
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -419,7 +610,7 @@ function ArtisanOrders() {
                       padding: '30px'
                     }}>
                       {payment.items
-                        .filter(item => item.status === 'pending')
+                        .filter(item => activeTab === 'pending' ? item.status === 'pending' : true)
                         .map((item, index) => (
                           <div key={`${payment._id}-${item._id}`} style={{
                             background: 'linear-gradient(135deg, #f8f1e9, #fff)',
@@ -470,17 +661,33 @@ function ArtisanOrders() {
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
-                                    gap: '5px',
-                                    background: 'rgba(255, 107, 107, 0.1)',
-                                    padding: '6px 12px',
-                                    borderRadius: '20px',
-                                    fontSize: '0.9em',
-                                    fontWeight: 600,
-                                    color: '#ff6b6b'
-                                  }}>
-                                    <span>⏳</span>
-                                    <span>En attente</span>
-                                  </div>
+                gap: '5px',
+                background: item.status === 'completed' 
+                  ? 'rgba(76, 175, 80, 0.1)' 
+                  : 'rgba(255, 107, 107, 0.1)',
+                padding: '6px 12px',
+                borderRadius: '20px',
+                fontSize: '0.9em',
+                fontWeight: 600,
+                color: item.status === 'completed' ? '#4caf50' : '#ff6b6b'
+              }}>
+                <span>{item.status === 'completed' ? '✅' : '⏳'}</span>
+                <span>{item.status === 'completed' ? 'Expédié' : 'En attente'}</span>
+              </div>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                background: 'rgba(33, 150, 243, 0.1)',
+                padding: '6px 12px',
+                borderRadius: '20px',
+                fontSize: '0.9em',
+                fontWeight: 600,
+                color: '#2196f3'
+              }}>
+                <span>💰</span>
+                <span>Prix: {item.price ? `${item.price.toFixed(2)} €` : 'N/A'}</span>
+              </div>
                                 </div>
                               </div>
                               <div style={{
@@ -568,40 +775,42 @@ function ArtisanOrders() {
         </div>
 
                             {/* Action Button */}
-        <div style={{
-                              display: 'flex',
-                              justifyContent: 'center'
-                            }}>
-                              <button
-                                onClick={() => handleConfirmShipment(payment._id, item._id)}
-                                style={{
-                                  background: 'linear-gradient(135deg, #4ecdc4, #44a08d)',
-                                  color: '#fff',
-                                  border: 'none',
-                                  padding: '15px 30px',
-                                  borderRadius: '25px',
-                                  fontSize: '1.1em',
-                                  fontWeight: 600,
-                                  cursor: 'pointer',
-                                  transition: 'all 0.3s ease',
-                                  boxShadow: '0 8px 25px rgba(78, 205, 196, 0.3)',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '10px'
-                                }}
-                                onMouseOver={(e) => {
-                                  e.target.style.transform = 'translateY(-2px)';
-                                  e.target.style.boxShadow = '0 12px 35px rgba(78, 205, 196, 0.4)';
-                                }}
-                                onMouseOut={(e) => {
-                                  e.target.style.transform = 'translateY(0)';
-                                  e.target.style.boxShadow = '0 8px 25px rgba(78, 205, 196, 0.3)';
-                                }}
-                              >
-                                <span>✅</span>
-                                Marquer comme expédié
-                              </button>
-                            </div>
+                            {activeTab === 'pending' && item.status !== 'completed' && (
+                              <div style={{
+                                display: 'flex',
+                                justifyContent: 'center'
+                              }}>
+                                <button
+                                  onClick={() => handleConfirmShipment(payment._id, item._id)}
+                                  style={{
+                                    background: 'linear-gradient(135deg, #4ecdc4, #44a08d)',
+                                    color: '#fff',
+                                    border: 'none',
+                                    padding: '15px 30px',
+                                    borderRadius: '25px',
+                                    fontSize: '1.1em',
+                                    fontWeight: 600,
+                                    cursor: 'pointer',
+                                    transition: 'all 0.3s ease',
+                                    boxShadow: '0 8px 25px rgba(78, 205, 196, 0.3)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '10px'
+                                  }}
+                                  onMouseOver={(e) => {
+                                    e.target.style.transform = 'translateY(-2px)';
+                                    e.target.style.boxShadow = '0 12px 35px rgba(78, 205, 196, 0.4)';
+                                  }}
+                                  onMouseOut={(e) => {
+                                    e.target.style.transform = 'translateY(0)';
+                                    e.target.style.boxShadow = '0 8px 25px rgba(78, 205, 196, 0.3)';
+                                  }}
+                                >
+                                  <span>✅</span>
+                                  Marquer comme expédié
+                                </button>
+                              </div>
+                            )}
                           </div>
                         ))}
                     </div>
@@ -609,6 +818,7 @@ function ArtisanOrders() {
                 ))}
             </div>
           )}
+
         </div>
       </main>
 

@@ -49,6 +49,7 @@ function ArtisanHeader() {
 
   return (
     <header style={{
+      fontFamily: '"Inter", "Segoe UI", "Roboto", sans-serif',
       background: 'linear-gradient(135deg, #8a5a44, #d4a373)',
       color: '#fff',
       padding: '20px 0',

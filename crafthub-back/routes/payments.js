@@ -969,7 +969,8 @@ router.get('/pending-orders', auth, async (req, res) => {
           status: 'pending',
           artisanId: userId // Utiliser l'ObjectId converti
         }
-      }
+      },
+      type: 'cart' // Seulement les commandes de produits
     })
       .populate('userId', 'email')
       .populate('items._id', 'name price')
@@ -988,6 +989,85 @@ router.get('/pending-orders', auth, async (req, res) => {
   }
 });
 
+// Récupérer toutes les commandes (historique)
+router.get('/all-orders', auth, async (req, res) => {
+  try {
+    console.log('Requête reçue pour /all-orders avec userId:', req.user.id);
+    if (!req.user.id) {
+      return res.status(401).json({ error: 'Utilisateur non authentifié' });
+    }
+
+    // Convertir req.user.id en ObjectId
+    const userId = new mongoose.Types.ObjectId(req.user.id);
+    console.log('UserId converti en ObjectId:', userId);
+
+    const payments = await Payment.find({
+      'items': {
+        $elemMatch: {
+          artisanId: userId // Toutes les commandes de cet artisan
+        }
+      },
+      type: 'cart' // Seulement les commandes de produits
+    })
+      .populate('userId', 'email prenom nom')
+      .populate('items._id', 'name price title')
+      .sort({ createdAt: -1 }) // Plus récent en premier
+      .lean();
+
+    console.log('Résultat de la requête historique:', payments.length, 'commandes trouvées');
+    
+    // Filtrer les items pour ne garder que ceux de cet artisan
+    const filteredPayments = payments.map(payment => ({
+      ...payment,
+      items: payment.items.filter(item => item.artisanId.equals(userId))
+    }));
+
+    res.json(filteredPayments);
+  } catch (error) {
+    console.error('Erreur lors de la récupération de l\'historique des commandes :', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Récupérer toutes les commandes pour les statistiques (produits seulement)
+router.get('/all-orders-stats', auth, async (req, res) => {
+  try {
+    console.log('Requête reçue pour /all-orders-stats avec userId:', req.user.id);
+    if (!req.user.id) {
+      return res.status(401).json({ error: 'Utilisateur non authentifié' });
+    }
+
+    // Convertir req.user.id en ObjectId
+    const userId = new mongoose.Types.ObjectId(req.user.id);
+    console.log('UserId converti en ObjectId:', userId);
+
+    const payments = await Payment.find({
+      'items': {
+        $elemMatch: {
+          artisanId: userId // Toutes les commandes de cet artisan
+        }
+      },
+      type: 'cart' // Seulement les commandes de produits
+    })
+      .populate('userId', 'email prenom nom')
+      .populate('items._id', 'name price title')
+      .sort({ createdAt: -1 }) // Plus récent en premier
+      .lean();
+
+    console.log('Résultat de la requête stats:', payments.length, 'commandes trouvées');
+    
+    // Filtrer les items pour ne garder que ceux de cet artisan
+    const filteredPayments = payments.map(payment => ({
+      ...payment,
+      items: payment.items.filter(item => item.artisanId.equals(userId))
+    }));
+
+    res.json(filteredPayments);
+  } catch (error) {
+    console.error('Erreur lors de la récupération des statistiques des commandes :', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // Confirmer l'envoi par l'artisan
 router.post('/confirm-shipment', auth, async (req, res) => {

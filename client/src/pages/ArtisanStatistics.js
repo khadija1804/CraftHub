@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getArtisanStatistics, getWorkshopStatistics, getProducts } from '../services/api';
+import { getArtisanStatistics, getProducts } from '../services/api';
 import { Bar } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -16,7 +16,6 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
 
 function ArtisanStatistics() {
   const [stats, setStats] = useState(null);
-  const [workshopStats, setWorkshopStats] = useState(null);
   const [artisanProducts, setArtisanProducts] = useState([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -28,13 +27,11 @@ function ArtisanStatistics() {
         const artisanId = localStorage.getItem('userId'); // Assure-toi que l'ID est stocké
         if (!artisanId) throw new Error('Utilisateur non identifié');
 
-        const [artisanResponse, workshopResponse, productsResponse] = await Promise.all([
+        const [artisanResponse, productsResponse] = await Promise.all([
           getArtisanStatistics(),
-          getWorkshopStatistics(artisanId),
           getProducts(), // Récupérer tous les produits de l'artisan
         ]);
         setStats(artisanResponse.data);
-        setWorkshopStats(workshopResponse.data);
         setArtisanProducts(productsResponse.data || []);
         setError('');
       } catch (err) {
@@ -71,13 +68,13 @@ function ArtisanStatistics() {
     plugins: { legend: { position: 'top' }, tooltip: { mode: 'index', intersect: false } },
   };
 
-  // Graphique pour les ateliers (places restantes par atelier)
+  // Graphique pour les ateliers (les plus réservés)
   const workshopChartData = {
-    labels: workshopStats?.workshops?.map(workshop => workshop.title) || [],
+    labels: stats?.topWorkshops?.map(workshop => workshop.name) || [],
     datasets: [
       {
-        label: 'Places Restantes',
-        data: workshopStats?.workshops?.map(workshop => workshop.places || 0) || [],
+        label: 'Réservations',
+        data: stats?.topWorkshops?.map(workshop => workshop.quantity) || [],
         backgroundColor: 'rgba(212, 163, 115, 0.6)',
         borderColor: 'rgba(212, 163, 115, 1)',
         borderWidth: 1,
@@ -91,7 +88,7 @@ function ArtisanStatistics() {
     scales: { 
       y: { 
         beginAtZero: true, 
-        title: { display: true, text: 'Places Restantes' } 
+        title: { display: true, text: 'Quantité' } 
       }, 
       x: { 
         title: { display: true, text: 'Ateliers' },
@@ -111,7 +108,7 @@ function ArtisanStatistics() {
             return context[0].label;
           },
           label: function(context) {
-            return `Places restantes: ${context.parsed.y}`;
+            return `Réservations: ${context.parsed.y}`;
           }
         }
       } 
@@ -355,7 +352,7 @@ function ArtisanStatistics() {
           </div>
         </div>
 
-        {stats && workshopStats && artisanProducts && (
+        {stats && artisanProducts && (
           <>
             <div style={{ marginBottom: '30px' }}>
               <h3 style={{ color: '#8a5a44', fontSize: '1.5em' }}>Résumé</h3>
@@ -431,7 +428,7 @@ function ArtisanStatistics() {
                 }}>
                   <div style={{ fontSize: '3em', marginBottom: '15px' }}>🎨</div>
                   <h4 style={{ color: '#8a5a44', margin: '0 0 10px 0', fontSize: '1.2em' }}>Ateliers</h4>
-                  <p style={{ fontSize: '2.5em', color: '#8a5a44', margin: '0', fontWeight: 700 }}>{workshopStats.totalWorkshops}</p>
+                  <p style={{ fontSize: '2.5em', color: '#8a5a44', margin: '0', fontWeight: 700 }}>{stats.totalWorkshopsCreated || 0}</p>
             </div>
 
 
@@ -517,7 +514,7 @@ function ArtisanStatistics() {
                     justifyContent: 'center',
                     gap: '10px'
                   }}>
-                    🎨 Places Restantes par Atelier
+                    🎨 Ateliers les Plus Réservés
                   </h3>
                   <div style={{ width: '100%', height: '350px', position: 'relative' }}>
                 <Bar data={workshopChartData} options={workshopChartOptions} />
@@ -808,13 +805,13 @@ function ArtisanStatistics() {
                       padding: '12px 0',
                       borderBottom: '1px solid rgba(212, 163, 115, 0.1)'
                     }}>
-                      <span style={{ color: '#8a5a44', fontWeight: 600 }}>Taux de Remplissage des ateliers </span>
+                      <span style={{ color: '#8a5a44', fontWeight: 600 }}>Ateliers Créés</span>
                       <span style={{ 
-                        color: workshopStats.averageFillRate > 70 ? '#4CAF50' : workshopStats.averageFillRate > 40 ? '#FF9800' : '#F44336',
+                        color: '#4CAF50',
                         fontWeight: 700,
                         fontSize: '1.1em'
                       }}>
-                        {workshopStats.averageFillRate || 0}%
+                        {stats.totalWorkshopsCreated || 0}
                       </span>
                     </div>
                     <div style={{
@@ -825,13 +822,13 @@ function ArtisanStatistics() {
                     }}>
                       <span style={{ color: '#8a5a44', fontWeight: 600 }}>Statut</span>
                       <span style={{ 
-                        color: workshopStats.averageFillRate > 70 ? '#4CAF50' : workshopStats.averageFillRate > 40 ? '#FF9800' : '#F44336',
+                        color: '#4CAF50',
                         fontWeight: 600,
                         padding: '4px 12px',
                         borderRadius: '20px',
-                        backgroundColor: workshopStats.averageFillRate > 70 ? 'rgba(76, 175, 80, 0.1)' : workshopStats.averageFillRate > 40 ? 'rgba(255, 152, 0, 0.1)' : 'rgba(244, 67, 54, 0.1)'
+                        backgroundColor: 'rgba(76, 175, 80, 0.1)'
                       }}>
-                        {workshopStats.averageFillRate > 70 ? 'Excellent' : workshopStats.averageFillRate > 40 ? 'Bon' : 'À améliorer'}
+                        Actif
                       </span>
                     </div>
                   </div>

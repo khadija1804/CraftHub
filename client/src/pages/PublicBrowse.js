@@ -827,7 +827,7 @@ const addToFavorites = async (item) => {
             textShadow: '2px 2px 4px rgba(0,0,0,0.3)',
             animation: 'fadeInUp 1s ease-out'
           }}>
-            Découvrez l'Artisanat Tunisien
+            Découvrez l'Artisanat Français
           </h1>
           <p style={{
             fontSize: '1.4em',

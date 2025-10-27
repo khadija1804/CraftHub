@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import ArtisanHeader from '../components/ArtisanHeader';
 import ArtisanFooter from '../components/ArtisanFooter';
@@ -83,9 +83,93 @@ const CATS = [
   },
 ];
 
+const WORKSHOP_CATEGORIES = [
+  {
+    title: 'Menuiserie',
+    emoji: '🪵',
+    items: [
+      'Fabrication de meubles simples',
+      'Sculpture sur bois',
+      'Marqueterie et incrustation',
+      'Restauration de meubles anciens',
+    ],
+  },
+  {
+    title: 'Poterie',
+    emoji: '🏺',
+    items: [
+      'Tournage de poterie',
+      'Modelage et sculpture en argile',
+      'Émaillage et cuisson',
+      'Création de vaisselle artisanale',
+    ],
+  },
+  {
+    title: 'Couture et textile',
+    emoji: '🧵',
+    items: [
+      'Couture de vêtements',
+      'Broderie et customisation',
+      'Tricot et crochet',
+      'Patchwork et quilting',
+    ],
+  },
+  {
+    title: 'Bijouterie',
+    emoji: '💍',
+    items: [
+      'Création de bijoux en métal',
+      'Travail de l\'argent et du cuivre',
+      'Sertissage de pierres',
+      'Fabrication de bijoux en perles',
+    ],
+  },
+  {
+    title: 'Cosmétiques naturels',
+    emoji: '🧴',
+    items: [
+      'Fabrication de savons',
+      'Création de bougies parfumées',
+      'Produits de soins naturels',
+      'Aromathérapie et huiles essentielles',
+    ],
+  },
+  {
+    title: 'Cuisine et pâtisserie',
+    emoji: '👨‍🍳',
+    items: [
+      'Pâtisserie artisanale',
+      'Fabrication de chocolats',
+      'Confiserie et confitures',
+      'Cuisine traditionnelle',
+    ],
+  },
+  {
+    title: 'Arts plastiques',
+    emoji: '🎨',
+    items: [
+      'Peinture et aquarelle',
+      'Dessin et illustration',
+      'Sculpture et modelage',
+      'Calligraphie et lettering',
+    ],
+  },
+  {
+    title: 'Artisanat du cuir',
+    emoji: '👜',
+    items: [
+      'Maroquinerie de base',
+      'Création de sacs et portefeuilles',
+      'Travail du cuir repoussé',
+      'Confection de ceintures et accessoires',
+    ],
+  },
+];
+
 export default function CategoriesInfo() {
+  const [activeTab, setActiveTab] = useState('products');
   return (
-    <div style={{ fontFamily: '"Georgia", serif', color: '#3a2f1a', minHeight: '100vh', backgroundColor: '#f8f1e9', margin: 0, padding: 0 }}>
+    <div style={{ fontFamily: '"Inter", "Segoe UI", "Roboto", sans-serif', color: '#3a2f1a', minHeight: '100vh', backgroundColor: '#f8f1e9', margin: 0, padding: 0 }}>
       <ArtisanHeader />
       
       {/* ===== Hero Section ===== */}
@@ -214,11 +298,88 @@ export default function CategoriesInfo() {
               color: '#6b5b47',
               lineHeight: '1.6',
               maxWidth: '600px',
-              margin: '0 auto'
+              margin: '0 auto 30px'
             }}>
-              Parcourez les catégories ci-dessous pour identifier où classer votre produit. 
+              Parcourez les catégories ci-dessous pour identifier où classer votre produit ou atelier. 
               Chaque catégorie contient des exemples spécifiques pour vous guider.
             </p>
+            
+            {/* Tab Buttons */}
+            <div style={{
+              display: 'flex',
+              gap: '20px',
+              justifyContent: 'center',
+              flexWrap: 'wrap'
+            }}>
+              <button
+                onClick={() => setActiveTab('products')}
+                style={{
+                  padding: '15px 40px',
+                  fontSize: '1.1em',
+                  fontWeight: 700,
+                  border: 'none',
+                  borderRadius: '15px',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  background: activeTab === 'products' 
+                    ? 'linear-gradient(135deg, #8a5a44, #d4a373)' 
+                    : 'linear-gradient(135deg, #e9ecef, #dee2e6)',
+                  color: activeTab === 'products' ? '#fff' : '#6c757d',
+                  boxShadow: activeTab === 'products' 
+                    ? '0 8px 20px rgba(138, 90, 68, 0.3)' 
+                    : '0 4px 10px rgba(0,0,0,0.1)',
+                  transform: activeTab === 'products' ? 'translateY(-2px)' : 'none'
+                }}
+                onMouseOver={(e) => {
+                  if (activeTab !== 'products') {
+                    e.target.style.transform = 'translateY(-2px)';
+                    e.target.style.boxShadow = '0 6px 15px rgba(0,0,0,0.15)';
+                  }
+                }}
+                onMouseOut={(e) => {
+                  if (activeTab !== 'products') {
+                    e.target.style.transform = 'none';
+                    e.target.style.boxShadow = '0 4px 10px rgba(0,0,0,0.1)';
+                  }
+                }}
+              >
+                📦 Produits ({CATS.length} catégories)
+              </button>
+              <button
+                onClick={() => setActiveTab('workshops')}
+                style={{
+                  padding: '15px 40px',
+                  fontSize: '1.1em',
+                  fontWeight: 700,
+                  border: 'none',
+                  borderRadius: '15px',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  background: activeTab === 'workshops' 
+                    ? 'linear-gradient(135deg, #8a5a44, #d4a373)' 
+                    : 'linear-gradient(135deg, #e9ecef, #dee2e6)',
+                  color: activeTab === 'workshops' ? '#fff' : '#6c757d',
+                  boxShadow: activeTab === 'workshops' 
+                    ? '0 8px 20px rgba(138, 90, 68, 0.3)' 
+                    : '0 4px 10px rgba(0,0,0,0.1)',
+                  transform: activeTab === 'workshops' ? 'translateY(-2px)' : 'none'
+                }}
+                onMouseOver={(e) => {
+                  if (activeTab !== 'workshops') {
+                    e.target.style.transform = 'translateY(-2px)';
+                    e.target.style.boxShadow = '0 6px 15px rgba(0,0,0,0.15)';
+                  }
+                }}
+                onMouseOut={(e) => {
+                  if (activeTab !== 'workshops') {
+                    e.target.style.transform = 'none';
+                    e.target.style.boxShadow = '0 4px 10px rgba(0,0,0,0.1)';
+                  }
+                }}
+              >
+                🛠️ Ateliers ({WORKSHOP_CATEGORIES.length} catégories)
+              </button>
+            </div>
           </div>
 
           <div style={{
@@ -226,7 +387,7 @@ export default function CategoriesInfo() {
             gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
             gap: '25px'
           }}>
-            {CATS.map((category, index) => (
+            {(activeTab === 'products' ? CATS : WORKSHOP_CATEGORIES).map((category, index) => (
               <div
                 key={category.title}
                 style={{

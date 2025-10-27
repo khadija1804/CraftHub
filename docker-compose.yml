@@ -90,6 +90,7 @@ services:
     environment:
       FLASK_ENV: production
       PYTHONUNBUFFERED: 1
+      
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:5011/health')"]
@@ -138,6 +139,8 @@ services:
     container_name: crafthub-python-resume
     ports:
       - "5003:5003"
+    env_file:
+      - ./crafthub-python/.env
     environment:
       FLASK_ENV: production
       PYTHONUNBUFFERED: 1
@@ -158,6 +161,9 @@ services:
     environment:
       FLASK_ENV: production
       PYTHONUNBUFFERED: 1
+      HF_HOME: /hf_cache
+    volumes:
+      - hf_cache:/hf_cache
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:5007/health')"]
@@ -167,3 +173,4 @@ services:
 
 volumes:
   mongo_data:
+  hf_cache:

@@ -749,7 +749,7 @@ const handlePaymentSuccess = async () => {
 
                       <div style={{
                         display: 'flex',
-                        height: '200px'
+                        minHeight: '200px'
                       }}>
                         {/* Image Section */}
                         {workshopImages[workshop.workshopId._id] && (
@@ -800,7 +800,8 @@ const handlePaymentSuccess = async () => {
                           padding: '25px',
                           display: 'flex',
                           flexDirection: 'column',
-                          justifyContent: 'space-between'
+                          justifyContent: 'space-between',
+                          minHeight: '200px'
                         }}>
                           {/* Top Section */}
                           <div>
@@ -904,35 +905,56 @@ const handlePaymentSuccess = async () => {
                           {/* Bottom Section - Cancel Button */}
                           <div style={{
                             display: 'flex',
-                            justifyContent: 'flex-end'
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginTop: '20px',
+                            paddingTop: '20px',
+                            borderTop: '1px solid rgba(138, 90, 68, 0.1)',
+                            flexShrink: 0
                           }}>
+                            <div style={{
+                              color: '#6b5b47',
+                              fontSize: '0.9em',
+                              fontWeight: 600
+                            }}>
+                              ID: {workshop._id.slice(-8)}
+                            </div>
                             <button
                               onClick={() => handleRemoveBooking(workshop._id)}
                               style={{
-                                padding: '12px 25px',
+                                padding: '15px 30px',
                                 background: 'linear-gradient(135deg, #dc3545, #c82333)',
                                 color: '#fff',
                                 border: 'none',
-                                borderRadius: '15px',
-                                fontSize: '1em',
-                                fontWeight: 600,
+                                borderRadius: '20px',
+                                fontSize: '1.1em',
+                                fontWeight: 700,
                                 cursor: 'pointer',
                                 transition: 'all 0.3s ease',
-                                boxShadow: '0 4px 15px rgba(220, 53, 69, 0.3)',
+                                boxShadow: '0 6px 20px rgba(220, 53, 69, 0.4)',
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: '8px'
+                                gap: '10px',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.5px',
+                                position: 'relative',
+                                overflow: 'hidden',
+                                minWidth: '200px',
+                                zIndex: 10
                               }}
                               onMouseOver={(e) => {
-                                e.target.style.transform = 'translateY(-2px)';
-                                e.target.style.boxShadow = '0 6px 20px rgba(220, 53, 69, 0.4)';
+                                e.target.style.transform = 'translateY(-3px)';
+                                e.target.style.boxShadow = '0 10px 30px rgba(220, 53, 69, 0.6)';
+                                e.target.style.background = 'linear-gradient(135deg, #e74c3c, #c0392b)';
                               }}
                               onMouseOut={(e) => {
                                 e.target.style.transform = 'translateY(0)';
-                                e.target.style.boxShadow = '0 4px 15px rgba(220, 53, 69, 0.3)';
+                                e.target.style.boxShadow = '0 6px 20px rgba(220, 53, 69, 0.4)';
+                                e.target.style.background = 'linear-gradient(135deg, #dc3545, #c82333)';
                               }}
                             >
-                              ❌ Annuler la réservation
+                              <span style={{ fontSize: '1.2em' }}>🗑️</span>
+                              Retirer cet atelier
                             </button>
                           </div>
                         </div>

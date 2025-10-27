@@ -573,7 +573,7 @@ function AccordionItem({ title, open = false, children }) {
 
 
   return (
-    <div style={{ fontFamily: '"Georgia", serif', color: '#3a2f1a', minHeight: '100vh', backgroundColor: '#f8f1e9', margin: 0, padding: 0 }}>
+    <div style={{ fontFamily: '"Inter", "Segoe UI", "Roboto", sans-serif', color: '#3a2f1a', minHeight: '100vh', backgroundColor: '#f8f1e9', margin: 0, padding: 0 }}>
       <ArtisanHeader />
 
      {/* ===== Modern Profile Section ===== */}

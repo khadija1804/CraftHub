@@ -2,40 +2,62 @@
 FROM python:3.11-slim
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends gcc g++ \
+# OS deps for tokenizers / TLS
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc g++ curl ca-certificates libstdc++6 libgomp1 \
   && rm -rf /var/lib/apt/lists/*
 
+# Pip & caches
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    PIP_DEFAULT_TIMEOUT=300 \
-    PIP_NO_CACHE_DIR=1
+    PIP_DEFAULT_TIMEOUT=600 \
+    PIP_NO_CACHE_DIR=1 \
+    HF_HOME=/app/.cache/huggingface \
+    TRANSFORMERS_CACHE=/app/.cache/huggingface/transformers \
+    OMP_NUM_THREADS=1 \
+    MKL_NUM_THREADS=1 \
+    TOKENIZERS_PARALLELISM=false
 
-# 1) Torch CPU (>=2.6) via l’index PyTorch (évite CVE)
+# Torch CPU
 RUN python -m pip install --upgrade pip \
- && pip install --prefer-binary --retries 10 --timeout 600 \
+ && pip install --prefer-binary --retries 10 --timeout 1200 \
       --index-url https://download.pytorch.org/whl/cpu \
       --trusted-host download.pytorch.org \
       "torch==2.6.0"
 
-# 2) Reste via PyPI
-RUN pip install --prefer-binary --retries 10 --timeout 600 \
+# Python libs
+RUN pip install --prefer-binary --retries 10 --timeout 1200 \
       --trusted-host pypi.org --trusted-host files.pythonhosted.org \
       "transformers>=4.44,<5" \
-      "sacremoses==0.1.1" \
-      flask flask-cors flask-limiter
+      "sacremoses>=0.1.1" \
+      "flask>=3" "flask-cors>=4" "flask-limiter>=3,<4"
 
-# (Optionnel)
-# ENV HF_HUB_DISABLE_TELEMETRY=1
-# ENV TRANSFORMERS_OFFLINE=1
+# ---- Prefetch model (ONLINE ONLY HERE) ----
+# (Optional) Hugging Face token to avoid throttling:
+ARG HF_TOKEN=""
+# Disable fast-transfer here to avoid requiring hf_transfer
+RUN HF_HUB_OFFLINE=0 HF_HUB_ENABLE_HF_TRANSFER=0 python - <<'PY'
+import os
+from huggingface_hub import snapshot_download
+model_id = "sshleifer/distilbart-cnn-12-6"
+kwargs = dict(
+    repo_id=model_id,
+    local_dir=f"/app/.cache/huggingface/models/{model_id.replace('/', '--')}",
+    allow_patterns=[
+        "config.json","merges.txt","tokenizer.json","tokenizer_config.json",
+        "vocab.json","*.safetensors","model.safetensors","pytorch_model.bin",
+    ],
+)
+token = os.environ.get("HF_TOKEN") or None
+if token:
+    kwargs["token"] = token
+snapshot_download(**kwargs)
+print("✅ Model prefetched:", model_id)
+PY
 
-# Pré-chargement DistilBART CNN (safetensors si dispo)
-RUN printf "%s\n" \
-  "from transformers import pipeline" \
-  "print('Prefetch DistilBART CNN summarization model...')" \
-  "_ = pipeline('summarization', model='sshleifer/distilbart-cnn-12-6', framework='pt', use_safetensors=True)" \
-  "print('OK')" > /tmp/prefetch_resume.py \
- && python /tmp/prefetch_resume.py \
- && rm /tmp/prefetch_resume.py
+# ---- Runtime OFFLINE after prefetch ----
+ENV HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1
 
+# App code
 COPY . /app
 EXPOSE 5003
 CMD ["python", "resume.py"]
